@@ -23,6 +23,8 @@ const newResponse = await fetch(request,
         { cf:
             {
                 cacheKey: cache.key,
+                polish: lossless,
+                avif: true,
                 cacheEverything: true,
                 cacheTtlByStatus: {
                     '100-199': cache.info,
