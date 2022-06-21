@@ -32,7 +32,7 @@ const newResponse = await fetch(request,
                     '500-599': cache.serverError
                     },
                 cacheTags: [ 
-                    "static"
+                    'static'
                     ]
             },
         
