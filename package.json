@@ -2,7 +2,7 @@
     "name": "caching",
     "version": "1.0.0",
     "description": "caching",
-    "main": "caching.js",
+    "main": "cache.js",
     "author": "Erfi Anugrah",
     "license": "ISC"
 }
