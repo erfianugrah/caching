@@ -26,7 +26,7 @@ const newResponse = await fetch(request,
         { cf:
             {
                 cacheKey: cache.key,
-                polish: 
+                polish: false,
                 cacheEverything: true,
                 cacheTtlByStatus: {
                     '100-199': cache.info,
