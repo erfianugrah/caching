@@ -47,7 +47,7 @@ export default {
         let cacheControl = '';
 
         // Find the matching asset in the cacheAssets array
-        let matchedAsset = cacheAssets.find(asset => asset.regex.test(newUrl));
+        let matchedAsset = cacheAssets.find(asset => asset.regex.test(newRequest));
 
         if (matchedAsset) {
             // Set the cache-control header based on the asset type
