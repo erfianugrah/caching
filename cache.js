@@ -49,18 +49,10 @@ export default {
         // Find the matching asset in the cacheAssets array
         let matchedAsset = cacheAssets.find(asset => asset.regex.test(newRequest));
 
-        if (matchedAsset) {
-            // Set the cache-control header based on the asset type
-            if (response.status >= 200 && response.status < 300) {
-                cacheControl = `public, max-age=${matchedAsset.ok}`;
-            } else if (response.status >= 300 && response.status < 400) {
-                cacheControl = `public, max-age=${matchedAsset.redirects}`;
-            } else if (response.status >= 400 && response.status < 500) {
-                cacheControl = `public, max-age=${matchedAsset.clientError}`;
-            } else if (response.status >= 500 && response.status < 600) {
-                cacheControl = `public, max-age=${matchedAsset.serverError}`;
+            if (matchedAsset) {
+                const prop = ['ok', 'redirects', 'clientError', 'serverError'][Math.floor(response.status / 100) - 2] || 0;
+                cacheControl = prop && `public, max-age=${matchedAsset[prop]}`;
             }
-        }
 
         // Set the cache-control header on the response
         response.headers.set('Cache-Control', cacheControl);
