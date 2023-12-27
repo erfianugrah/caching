@@ -11,12 +11,12 @@ export default {
 
         // Here we set all variables needed to manipulate Cloudflare's cache using the fetch API in the cf object, we'll be passing these variables in the objects down
         const cacheAssets = [
-            { asset: 'video', key: customCacheKey, regex: /(.*\/Video)|(.*\.(m4s|mp4|ts|avi|mpeg|mpg|mkv|bin|webm|vob|flv|m2ts|mts|3gp|m4v|wmv|qt))$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-video' },
-            { asset: 'image', key: queryCacheKey, regex: /(.*\/Images)|(.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm))$/, info: 0, ok: 3600, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-image' },
-            { asset: 'frontEnd', key: queryCacheKey, regex: /^.*\.(css|js)$/, info: 0, ok: 3600, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-frontEnd' },
-            { asset: 'audio', key: customCacheKey, regex: /(.*\/Audio)|(.*\.(flac|aac|mp3|alac|aiff|wav|ogg|aiff|opus|ape|wma|3gp))$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-audio' },
-            { asset: 'directPlay', key: customCacheKey, regex: /.*(\/Download)$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-directPlay' },
-            { asset: 'manifest', key: customCacheKey, regex: /^.*\.(m3u8|mpd)$/, info: 0, ok: 3, redirects: 2, clientError: 1, serverError: 0, cacheTag: 'signed-manifest' }
+            { asset: 'video', key: customCacheKey, cachability: true, regex: /(.*\/Video)|(.*\.(m4s|mp4|ts|avi|mpeg|mpg|mkv|bin|webm|vob|flv|m2ts|mts|3gp|m4v|wmv|qt))$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-video' },
+            { asset: 'image', key: queryCacheKey, cachability: true, regex: /(.*\/Images)|(.*\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm))$/, info: 0, ok: 3600, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-image' },
+            { asset: 'frontEnd', key: queryCacheKey, cachability: true, regex: /^.*\.(css|js)$/, info: 0, ok: 3600, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-frontEnd' },
+            { asset: 'audio', key: customCacheKey, cachability: true, regex: /(.*\/Audio)|(.*\.(flac|aac|mp3|alac|aiff|wav|ogg|aiff|opus|ape|wma|3gp))$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-audio' },
+            { asset: 'directPlay', key: customCacheKey, cachability: true, regex: /.*(\/Download)$/, info: 0, ok: 31556952, redirects: 30, clientError: 10, serverError: 0, cacheTag: 'signed-directPlay' },
+            { asset: 'manifest', key: customCacheKey, cachability: true, regex: /^.*\.(m3u8|mpd)$/, info: 0, ok: 3, redirects: 2, clientError: 1, serverError: 0, cacheTag: 'signed-manifest' }
         ]
 
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find we'll be using the regex to match on file extensions for caching
@@ -28,7 +28,7 @@ export default {
                 {
                     cacheKey: cache.key,
                     polish: false,
-                    cacheEverything: true,
+                    cacheEverything: cache.cachability,
                     cacheTtlByStatus: {
                         '100-199': cache.info,
                         '200-299': cache.ok,
@@ -49,10 +49,10 @@ export default {
         // Find the matching asset in the cacheAssets array
         let matchedAsset = cacheAssets.find(asset => asset.regex.test(newRequest));
 
-            if (matchedAsset) {
-                const prop = ['ok', 'redirects', 'clientError', 'serverError'][Math.floor(response.status / 100) - 2] || 0;
-                cacheControl = prop && `public, max-age=${matchedAsset[prop]}`;
-            }
+        if (matchedAsset) {
+            const prop = ['ok', 'redirects', 'clientError', 'serverError'][Math.floor(response.status / 100) - 2] || 0;
+            cacheControl = prop && `public, max-age=${matchedAsset[prop]}`;
+        }
 
         // Set the cache-control header on the response
         response.headers.set('Cache-Control', cacheControl);
