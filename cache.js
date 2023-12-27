@@ -28,7 +28,7 @@ export default {
                 {
                     cacheKey: cache.key,
                     polish: cache.imageCompression,
-                    minify: cache.Minified,
+                    minify: cache.minified,
                     mirage: cache.mirage,
                     cacheEverything: cache.cachability,
                     cacheTtlByStatus: {
