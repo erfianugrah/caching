@@ -26,11 +26,11 @@ export default {
             {
                 cf:
                 {
-                    cacheKey: cache.key,
-                    polish: cache.imageCompression,
-                    minify: cache.minified,
-                    mirage: cache.mirage,
-                    cacheEverything: cache.cachebility,
+                    cacheKey: cache.key || newRequest,
+                    polish: cache.imageCompression || 'off',
+                    minify: cache.minified || { javascript: false, css: false, html: false },
+                    mirage: cache.mirage || false,
+                    cacheEverything: cache.cachebility || false,
                     cacheTtlByStatus: {
                         '100-199': cache.info,
                         '200-299': cache.ok,
