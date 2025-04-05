@@ -1,8 +1,32 @@
 {
     "name": "caching",
     "version": "1.0.0",
-    "description": "caching",
-    "main": "cache.js",
+    "description": "caching service with typescript",
+    "main": "dist/cache.js",
+    "scripts": {
+        "build": "tsc",
+        "dev": "wrangler dev --config wrangler.jsonc",
+        "deploy": "tsc && wrangler deploy --config wrangler.jsonc",
+        "deploy:staging": "tsc && wrangler deploy --env staging --config wrangler.jsonc",
+        "deploy:prod": "tsc && wrangler deploy --env prod --config wrangler.jsonc",
+        "lint": "eslint 'src/**/*.ts'",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "format": "prettier --write 'src/**/*.ts'",
+        "clean": "rm -rf dist",
+        "prebuild": "npm run clean"
+    },
     "author": "Erfi Anugrah",
-    "license": "ISC"
+    "license": "ISC",
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240320.1",
+        "@typescript-eslint/eslint-plugin": "^6.19.0",
+        "@typescript-eslint/parser": "^6.19.0",
+        "eslint": "^8.56.0",
+        "prettier": "^3.2.4",
+        "typescript": "^5.3.3",
+        "vitest": "^1.2.1",
+        "wrangler": "^4.7.2"
+    }
 }

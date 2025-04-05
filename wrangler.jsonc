@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json.schemastore.org/wrangler.json",
+  "name": "caching",
+  "main": "./src/cache.ts",
+  "compatibility_date": "2023-09-04",
+  "account_id": "25f21f141824546aa72c74451a11b419",
+  "build": {
+    "command": "npm run build",
+    "cwd": ".",
+    "watch_dir": "src"
+  },
+  "dev": {
+    "port": 9001,
+    "local_protocol": "http",
+    "upstream_protocol": "https",
+    "ip": "0.0.0.0"
+  },
+  "vars": {
+    "LOG_LEVEL": "DEBUG"
+  },
+  "env": {
+    "staging": {
+      "name": "staging-caching",
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "DEBUG_MODE": "true",
+        "MAX_CACHE_TAGS": "20",
+        "CACHE_TAG_NAMESPACE": "cf"
+      },
+      "workers_dev": true,
+      "usage_model": "bundled"
+    },
+    "prod": {
+      "name": "prod-caching",
+      "vars": {
+        "ENVIRONMENT": "production",
+        "LOG_LEVEL": "DEBUG",
+        "DEBUG_MODE": "true",
+        "MAX_CACHE_TAGS": "1000",
+        "CACHE_TAG_NAMESPACE": "cf"
+      },
+      "routes": [
+        {
+          "pattern": "*jellyfin.erfianugrah.com/*",
+          "zone_id": "3f2c4daa43d5920f313654a873b31d06"
+        }
+      ]
+    },
+    "dev": {
+      "name": "dev-caching",
+      "vars": {
+        "ENVIRONMENT": "development",
+        "DEBUG_MODE": "true",
+        "LOG_LEVEL": "DEBUG",
+        "MAX_CACHE_TAGS": "20",
+        "CACHE_TAG_NAMESPACE": "cf"
+      },
+      "workers_dev": true
+    }
+  }
+}
