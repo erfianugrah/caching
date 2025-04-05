@@ -1,0 +1,98 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { Button } from '../../components/ui/button';
+import AssetTypeForm from '../../components/app/AssetTypeForm';
+
+const { id } = Astro.params;
+const isNew = id === 'new';
+const title = isNew ? 'Add Asset Type' : 'Edit Asset Type';
+---
+
+<Layout title={`${title} - Caching Admin`}>
+  <div class="container mx-auto py-8">
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-3xl font-bold">{title}</h1>
+      <a href="/asset-types">
+        <Button variant="outline" client:load>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Back to List
+        </Button>
+      </a>
+    </div>
+
+    <div id="loading-indicator" class="text-center py-8">
+      <div class="animate-spin h-8 w-8 border-t-2 border-b-2 border-blue-600 rounded-full mx-auto"></div>
+      <p class="text-gray-500 mt-4">Loading asset type data...</p>
+    </div>
+
+    <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+      Failed to load asset type. Please try again.
+    </div>
+
+    <div id="form-container" class="hidden">
+      <AssetTypeForm 
+        client:load 
+        id={id} 
+        isNew={isNew} 
+      />
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { assetTypeApi } from '../../lib/api-client';
+  import type { AssetTypeData } from '../../lib/api-types';
+
+  // Get the asset type ID from the URL
+  const url = new URL(window.location.href);
+  const pathParts = url.pathname.split('/');
+  const id = pathParts[pathParts.length - 1];
+  const isNew = id === 'new';
+
+  // Elements
+  const loadingIndicator = document.getElementById('loading-indicator');
+  const errorMessage = document.getElementById('error-message');
+  const formContainer = document.getElementById('form-container');
+  const formComponent = formContainer?.querySelector('asset-type-form');
+
+  // Load asset type data if editing an existing asset type
+  async function loadAssetType() {
+    if (!loadingIndicator || !errorMessage || !formContainer || !formComponent) return;
+
+    if (isNew) {
+      // No need to load data for a new asset type
+      loadingIndicator.classList.add('hidden');
+      formContainer.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const response = await assetTypeApi.getById(id);
+
+      loadingIndicator.classList.add('hidden');
+
+      if (response.success && response.data) {
+        formContainer.classList.remove('hidden');
+        
+        // Update component props
+        if (formComponent.__astro && formComponent.__astro.setProps) {
+          formComponent.__astro.setProps({
+            defaultValues: response.data,
+            id: id,
+            isNew: false
+          });
+        }
+      } else {
+        errorMessage.textContent = response.error || 'Failed to load asset type. Please try again.';
+        errorMessage.classList.remove('hidden');
+      }
+    } catch (error) {
+      loadingIndicator.classList.add('hidden');
+      errorMessage.classList.remove('hidden');
+      console.error('Error loading asset type:', error);
+    }
+  }
+
+  // Load the asset type when the page loads
+  document.addEventListener('DOMContentLoaded', loadAssetType);
+</script>

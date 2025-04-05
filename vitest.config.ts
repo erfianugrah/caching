@@ -1,3 +1,4 @@
+// Use ESM import for Vite to address CJS deprecation warning
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({

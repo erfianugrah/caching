@@ -1,12 +1,19 @@
 import { AssetConfig, CfCacheOptions } from '../types/cache-config';
 import { CfOptionsService } from './interfaces';
-import { CacheKeyGenerator } from './cache-key-service';
-import { TagGenerator } from './cache-tag-service';
+import { ServiceFactory } from './service-factory';
+import { logger } from '../utils/logger';
 
 /**
  * Implementation of CfOptionsService for generating CloudFlare cache options
  */
-export class DefaultCfOptionsService implements CfOptionsService {
+export class CfOptionsServiceImpl implements CfOptionsService {
+  /**
+   * Create a new CfOptionsServiceImpl
+   */
+  constructor() {
+    logger.debug('CfOptionsServiceImpl initialized');
+  }
+
   /**
    * Generate CloudFlare-specific cache options
    * @param request The request
@@ -14,16 +21,20 @@ export class DefaultCfOptionsService implements CfOptionsService {
    * @returns CloudFlare cache options
    */
   public getCfOptions(request: Request, config: AssetConfig): CfCacheOptions {
+    // Get the services through factory to avoid circular dependencies
+    const cacheTagService = ServiceFactory.getCacheTagService();
+    const cacheKeyService = ServiceFactory.getCacheKeyService();
+    
     // Generate dynamic cache tags based on request and asset type
-    const assetType = 'assetType' in config ? (config as any).assetType : 'default';
-    const cacheTags = TagGenerator.generateTags(request, assetType);
+    const assetType = 'assetType' in config ? (config as Record<string, string>).assetType : 'default';
+    const cacheTags = cacheTagService.generateTags(request, assetType);
     
     // Generate cache key
-    const cacheKey = CacheKeyGenerator.getCacheKey(request, config);
+    const cacheKey = cacheKeyService.getCacheKey(request, config);
 
-    return {
+    const options: CfCacheOptions = {
       cacheKey,
-      polish: config.imageOptimization ? 'lossy' : 'off',
+      polish: config.imageOptimization ? 'lossy' as const : 'off' as const,
       minify: {
         javascript: false,
         css: config.minifyCss || false,
@@ -40,8 +51,16 @@ export class DefaultCfOptionsService implements CfOptionsService {
       },
       cacheTags,
     };
+    
+    logger.debug('Generated CF options', { 
+      assetType, 
+      cacheKey,
+      cacheTags: cacheTags.length
+    });
+    
+    return options;
   }
 }
 
-// Export default implementation
-export const CfOptionsGenerator = new DefaultCfOptionsService();
+// For backwards compatibility during refactoring
+export class DefaultCfOptionsService extends CfOptionsServiceImpl {}

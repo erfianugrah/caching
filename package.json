@@ -2,31 +2,32 @@
     "name": "caching",
     "version": "1.0.0",
     "description": "caching service with typescript",
-    "main": "dist/cache.js",
+    "main": "src/cache.ts",
+    "type": "module",
     "scripts": {
-        "build": "tsc",
         "dev": "wrangler dev --config wrangler.jsonc",
-        "deploy": "tsc && wrangler deploy --config wrangler.jsonc",
-        "deploy:staging": "tsc && wrangler deploy --env staging --config wrangler.jsonc",
-        "deploy:prod": "tsc && wrangler deploy --env prod --config wrangler.jsonc",
+        "deploy": "wrangler deploy",
+        "deploy:staging": "tsc --noEmit && wrangler deploy --env staging",
+        "deploy:prod": "tsc --noEmit && wrangler deploy --env prod",
         "lint": "eslint 'src/**/*.ts'",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
         "test:watch": "vitest",
-        "format": "prettier --write 'src/**/*.ts'",
-        "clean": "rm -rf dist",
-        "prebuild": "npm run clean"
+        "format": "prettier --write 'src/**/*.ts'"
     },
     "author": "Erfi Anugrah",
     "license": "ISC",
     "devDependencies": {
         "@cloudflare/workers-types": "^4.20240320.1",
-        "@typescript-eslint/eslint-plugin": "^6.19.0",
-        "@typescript-eslint/parser": "^6.19.0",
-        "eslint": "^8.56.0",
+        "@typescript-eslint/eslint-plugin": "^7.5.0",
+        "@typescript-eslint/parser": "^7.5.0",
+        "eslint": "^8.57.0",
         "prettier": "^3.2.4",
-        "typescript": "^5.3.3",
+        "typescript": "^5.8.3",
         "vitest": "^1.2.1",
         "wrangler": "^4.7.2"
+    },
+    "dependencies": {
+        "zod": "^3.24.2"
     }
 }

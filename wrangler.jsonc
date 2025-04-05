@@ -2,13 +2,11 @@
   "$schema": "https://json.schemastore.org/wrangler.json",
   "name": "caching",
   "main": "./src/cache.ts",
-  "compatibility_date": "2023-09-04",
+  "compatibility_date": "2025-03-10",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "account_id": "25f21f141824546aa72c74451a11b419",
-  "build": {
-    "command": "npm run build",
-    "cwd": ".",
-    "watch_dir": "src"
-  },
   "dev": {
     "port": 9001,
     "local_protocol": "http",

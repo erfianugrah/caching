@@ -1,19 +1,95 @@
-# Caching Service
+# Cloudflare Caching Service
 
-A TypeScript-based Cloudflare Worker for intelligent content-aware caching.
+A modern, service-oriented TypeScript implementation for intelligent content-aware caching with Cloudflare Workers.
 
 ## Features
 
 - Asset-specific caching rules based on file patterns
-- Optimized cache TTLs for different content types
-- Automatic cache tag generation for granular cache purging
-- Cloudflare-specific optimizations (image polish, CSS minification)
+- Content-specific optimization strategies
+- Cache tag support for efficient invalidation
 - Comprehensive error handling and logging
-- TypeScript for type safety and better DX
+- Telemetry and performance monitoring
+- Real-time debug dashboard
+- Strong TypeScript typing with ESM modules
 
 ## Architecture
 
-The service uses a service-oriented architecture with the following components:
+This project follows a modern architecture with these patterns:
+
+- **Service-Oriented Architecture**: Core functionality in specialized services
+- **Dependency Injection**: Services provided through a factory pattern
+- **Command Pattern**: Operations encapsulated as executable commands
+- **Strategy Pattern**: Content-specific caching strategies
+- **ES Modules**: Modern JavaScript module system
+
+For detailed architecture overview, see [Architecture Documentation](./docs/internal/architecture.md).
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 16+
+- npm 8+
+
+### Installation
+
+```bash
+npm install
+```
+
+### Development
+
+```bash
+# Start development server
+npm run dev
+
+# Run tests
+npm test
+
+# Run specific test
+vitest -t "test name"
+
+# Type check
+npm run typecheck
+
+# Lint
+npm run lint
+```
+
+### Deployment
+
+```bash
+# Production
+npm run deploy:prod
+
+# Staging
+npm run deploy:staging
+```
+
+## Configuration
+
+Configuration is handled through environment variables in `wrangler.jsonc`:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENVIRONMENT` | Environment name (development, staging, production) | `development` |
+| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARN, ERROR) | `INFO` |
+| `DEBUG_MODE` | Enable/disable debug mode | `false` |
+| `MAX_CACHE_TAGS` | Maximum number of cache tags per request | `10` |
+| `CACHE_TAG_NAMESPACE` | Namespace prefix for cache tags | `cf` |
+
+### Asset Type Configuration
+
+Caching rules are defined by asset type in `asset-type-service.ts`, including:
+
+- URL pattern matching with regex
+- TTL values for different status codes
+- Query parameter handling
+- Image and CSS optimization settings
+
+## Services
+
+The caching service includes these core services:
 
 - **Asset Type Service**: Detects content type from URL patterns
 - **Cache Key Service**: Generates cache keys with query parameter handling
@@ -21,156 +97,55 @@ The service uses a service-oriented architecture with the following components:
 - **Cache Header Service**: Manages response headers for optimal caching
 - **CF Options Service**: Generates Cloudflare-specific caching options
 
-## Development
+## Strategies
 
-### Prerequisites
+Content-specific caching strategies include:
 
-- Node.js 16+
-- Wrangler CLI for Cloudflare Workers
+- **Image Strategy**: Optimized for image content (compression, polish)
+- **Video Strategy**: Optimized for video content (streaming, segments)
+- **Frontend Strategy**: Optimized for CSS and JavaScript (minification)
+- **Audio Strategy**: Optimized for audio content (streaming)
+- **Direct Play Strategy**: Optimized for downloads (content disposition)
+- **Manifest Strategy**: Optimized for HLS/DASH manifests (short TTL, CORS)
+- **API Strategy**: Optimized for JSON/XML responses (headers, security)
+- **Default Strategy**: General purpose fallback caching
 
-### Getting Started
+See [Strategies Documentation](./docs/internal/strategies.md) for detailed information on each strategy.
 
-1. Clone the repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start development server:
-   ```bash
-   npm run dev
-   ```
+## Project Structure
 
-### Configuration File
-
-This project uses `wrangler.jsonc` instead of the traditional `wrangler.toml` for enhanced configuration capabilities:
-
-- JSON with comments allows for better structured data
-- Environment-specific configurations
-- Build configuration with TypeScript support
-- Environment variables for runtime configuration
-
-To use a specific environment configuration:
-
-```bash
-# Development (default)
-npm run dev
-
-# Staging
-npm run dev -- --env staging
-
-# Production
-npm run dev -- --env prod
 ```
-
-### Testing
-
-Run tests using Vitest:
-
-```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm test -- --coverage
-
-# Run a specific test
-npm test -- -t "test name"
-```
-
-### Building and Deployment
-
-```bash
-# Build the project
-npm run build
-
-# Deploy to staging
-npm run deploy:staging
-
-# Deploy to production
-npm run deploy:prod
-```
-
-## Configuration
-
-### Asset Type Configuration
-
-Caching rules are defined in the `asset-type-service.ts` file. Each asset type has its own configuration including:
-
-- URL pattern matching with regex
-- TTL values for different status codes
-- Query parameter handling
-- Image and CSS optimization settings
-
-### Environment Variables
-
-The following environment variables can be configured in the `wrangler.jsonc` file:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ENVIRONMENT` | Environment name (development, staging, production) | `development` |
-| `LOG_LEVEL` | Logging level (DEBUG, INFO, WARN, ERROR) | `INFO` |
-| `DEBUG_MODE` | Enable/disable debug mode | `false` |
-| `MAX_CACHE_TAGS` | Maximum number of cache tags to generate per request | `10` |
-| `CACHE_TAG_NAMESPACE` | Namespace prefix for cache tags | `cf` |
-
-These can be set globally or per environment:
-
-```jsonc
-{
-  "vars": {
-    "LOG_LEVEL": "INFO" // Global setting
-  },
-  "env": {
-    "prod": {
-      "vars": {
-        "LOG_LEVEL": "WARN" // Override for production
-      }
-    }
-  }
-}
+├── src/
+│   ├── commands/          # Command pattern implementations
+│   ├── errors/            # Custom error types
+│   ├── services/          # Core service implementations
+│   ├── strategies/        # Content-specific strategies
+│   │   ├── api-caching-strategy.ts        # API responses strategy
+│   │   ├── audio-caching-strategy.ts      # Audio files strategy
+│   │   ├── caching-strategy.ts            # Base strategy abstract class
+│   │   ├── default-caching-strategy.ts    # Default fallback strategy
+│   │   ├── direct-play-caching-strategy.ts # Direct download strategy
+│   │   ├── frontend-caching-strategy.ts   # CSS/JS strategy
+│   │   ├── image-caching-strategy.ts      # Image strategy
+│   │   ├── manifest-caching-strategy.ts   # HLS/DASH manifest strategy
+│   │   ├── strategy-factory.ts            # Strategy creation/selection
+│   │   └── video-caching-strategy.ts      # Video strategy
+│   ├── tests/             # Test files
+│   ├── types/             # TypeScript interfaces
+│   ├── utils/             # Utility functions
+│   └── cache.ts           # Main entry point
+├── docs/                 # Documentation directory
+│   ├── internal/         # Internal documentation for developers
+│   └── public/           # Public documentation for users
+├── CLAUDE.md              # Guidelines for Claude AI assistance
+└── README.md              # This file
 ```
 
 ## Cache Tag Purging
 
-This service supports Cloudflare's cache tag purging feature, which allows for granular and efficient cache purging based on tags. Cache tags are automatically generated based on:
-
-- Host names
-- Asset types
-- File extensions
-- URL path hierarchies
-
-### Tag Format and Limitations
-
-The service follows Cloudflare's requirements for cache tags:
-- Maximum 16KB total header length (approximately 1000 tags)
-- Maximum 1024 characters per tag for purge API calls
-- Only printable ASCII characters allowed
-- No spaces within tags
-- Case insensitive matching
-
-### Purging by Tag
-
-To purge content by tag:
-
-1. Log in to your Cloudflare dashboard
-2. Select Caching > Configuration
-3. Under Purge Cache, select Custom Purge
-4. Select "Tag" under Purge by
-5. Enter the tags to purge, separated by commas (e.g., `cf:host:example.com,cf:type:image,cf:ext:jpg`)
-6. Click Purge
-
-Alternatively, you can use the Cloudflare API to purge by tag programmatically:
-
-```bash
-curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" \
-     -H "Authorization: Bearer {api_token}" \
-     -H "Content-Type: application/json" \
-     --data '{"tags":["cf:host:example.com","cf:type:image"]}'
-```
+This service supports Cloudflare's cache tag purging feature for granular cache invalidation:
 
 ### Common Tag Patterns
-
-Here are some common tag patterns that can be useful for cache purging:
 
 | Tag Pattern | Example | Use Case |
 |-------------|---------|----------|
@@ -180,4 +155,6 @@ Here are some common tag patterns that can be useful for cache purging:
 | `cf:prefix:{path}` | `cf:prefix:/blog` | Purge all content under a path prefix |
 | `cf:path:{full_path}` | `cf:path:/blog/post1.html` | Purge a specific path |
 
-For more targeted purging, you can combine multiple tags in a single purge request.
+## License
+
+ISC © Erfi Anugrah

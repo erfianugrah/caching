@@ -1,24 +1,39 @@
-import { DefaultAssetService } from './asset-type-service';
-import { CacheKeyGenerator } from './cache-key-service';
-import { CacheHeaderManager } from './cache-header-service';
-import { TagGenerator } from './cache-tag-service';
-import { CfOptionsGenerator } from './cf-options-service';
+/**
+ * Services module exports
+ */
+
+// Export interfaces for public use
+export * from './interfaces';
+
+// Export the ServiceFactory as the primary way to access services
+export * from './service-factory';
+
+// Export the config service
+export { ConfigService } from './config-service';
+
+// Export asset type configs for testing
+export { defaultAssetConfigs } from './asset-type-service';
 
 /**
- * Service container providing access to all caching services
+ * Backwards compatibility layer for tests
+ * @deprecated Use ServiceFactory instead
  */
 export const Services = {
-  assetType: DefaultAssetService,
-  cacheKey: CacheKeyGenerator,
-  cacheHeader: CacheHeaderManager,
-  cacheTag: TagGenerator,
-  cfOptions: CfOptionsGenerator,
+  get assetType() {
+    return ServiceFactory.getAssetTypeService();
+  },
+  get cacheKey() {
+    return ServiceFactory.getCacheKeyService();
+  },
+  get cacheHeader() {
+    return ServiceFactory.getCacheHeaderService();
+  },
+  get cacheTag() {
+    return ServiceFactory.getCacheTagService();
+  },
+  get cfOptions() {
+    return ServiceFactory.getCfOptionsService();
+  }
 };
 
-// Re-export all services
-export * from './asset-type-service';
-export * from './cache-key-service';
-export * from './cache-header-service'; 
-export * from './cache-tag-service';
-export * from './cf-options-service';
-export * from './interfaces';
+import { ServiceFactory } from './service-factory';

@@ -1,34 +1,47 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DefaultCfOptionsService } from '../services/cf-options-service';
+import { CfOptionsServiceImpl } from '../services/cf-options-service';
 import { AssetTypeConfig } from '../types/cache-config';
-import { TagGenerator } from '../services/cache-tag-service';
-import { CacheKeyGenerator } from '../services/cache-key-service';
+import { ServiceFactory } from '../services/service-factory';
 
-// Mock dependencies - must be before imports
-vi.mock('../services/cache-tag-service', () => {
+// Mock service factory
+vi.mock('../services/service-factory', () => {
   return {
-    TagGenerator: {
-      generateTags: vi.fn(() => ['tag1', 'tag2']),
-      validateTag: vi.fn(() => true),
-      formatTagsForHeader: vi.fn((tags) => tags.join(','))
-    }
-  };
-});
-
-vi.mock('../services/cache-key-service', () => {
-  return {
-    CacheKeyGenerator: {
-      getCacheKey: vi.fn(() => 'example.com/test')
+    ServiceFactory: {
+      getCacheTagService: vi.fn(() => ({
+        generateTags: vi.fn(() => ['tag1', 'tag2']),
+        validateTag: vi.fn(() => true),
+        formatTagsForHeader: vi.fn((tags) => tags.join(','))
+      })),
+      getCacheKeyService: vi.fn(() => ({
+        getCacheKey: vi.fn(() => 'example.com/test')
+      }))
     }
   };
 });
 
 describe('CfOptionsService', () => {
-  const service = new DefaultCfOptionsService();
+  const service = new CfOptionsServiceImpl();
+  let mockCacheTagService: any;
+  let mockCacheKeyService: any;
   
   // Reset mocks before each test
   beforeEach(() => {
     vi.resetAllMocks();
+    
+    // Setup mock services
+    mockCacheTagService = {
+      generateTags: vi.fn(() => ['tag1', 'tag2']),
+      validateTag: vi.fn(() => true),
+      formatTagsForHeader: vi.fn((tags) => tags.join(','))
+    };
+    
+    mockCacheKeyService = {
+      getCacheKey: vi.fn(() => 'example.com/test')
+    };
+    
+    // Setup service mocks
+    vi.mocked(ServiceFactory.getCacheTagService).mockReturnValue(mockCacheTagService);
+    vi.mocked(ServiceFactory.getCacheKeyService).mockReturnValue(mockCacheKeyService);
     
     // Setup global environment variables for testing
     (globalThis as any).CACHE_TAG_NAMESPACE = 'test';
@@ -94,8 +107,8 @@ describe('CfOptionsService', () => {
     expect(options.cacheTtlByStatus['200-299']).toBe(3600);
     
     // Check dependencies
-    expect(TagGenerator.generateTags).toHaveBeenCalledWith(request, 'image');
-    expect(CacheKeyGenerator.getCacheKey).toHaveBeenCalledWith(request, imageConfig);
+    expect(mockCacheTagService.generateTags).toHaveBeenCalledWith(request, 'image');
+    expect(mockCacheKeyService.getCacheKey).toHaveBeenCalledWith(request, imageConfig);
   });
 
   it('should generate correct CF options for CSS assets', () => {
@@ -115,7 +128,7 @@ describe('CfOptionsService', () => {
     expect(options.cacheTtlByStatus['200-299']).toBe(1800);
     
     // Check dependencies
-    expect(TagGenerator.generateTags).toHaveBeenCalledWith(request, 'css');
+    expect(mockCacheTagService.generateTags).toHaveBeenCalledWith(request, 'css');
   });
 
   it('should handle assets with no optimization settings', () => {
@@ -132,7 +145,7 @@ describe('CfOptionsService', () => {
     expect(options.cacheTtlByStatus['200-299']).toBe(0);
     
     // Check dependencies
-    expect(TagGenerator.generateTags).toHaveBeenCalledWith(request, 'default');
+    expect(mockCacheTagService.generateTags).toHaveBeenCalledWith(request, 'default');
   });
 
   it('should always set cacheEverything to true', () => {

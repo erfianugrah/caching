@@ -1,0 +1,32 @@
+# Cloudflare Pages configuration for Admin UI
+
+name = "caching-admin-ui"
+compatibility_date = "2023-10-30"
+main = "./src/worker.ts"
+
+[site]
+bucket = "./dist"
+
+[build]
+command = "npm run build"
+
+# KV Namespace for storing configuration
+kv_namespaces = [
+  { binding = "CACHE_CONFIG", id = "", preview_id = "" }
+]
+
+# Development environment
+[env.development]
+vars = { ENVIRONMENT = "development" }
+
+[env.development.kv_namespaces]
+binding = "CACHE_CONFIG"
+preview_id = ""
+
+# Production environment
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+[env.production.kv_namespaces]
+binding = "CACHE_CONFIG"
+id = ""

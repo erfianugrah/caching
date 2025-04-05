@@ -1,11 +1,19 @@
 import { AssetConfig } from '../types/cache-config';
 import { CacheHeaderService } from './interfaces';
-import { TagGenerator } from './cache-tag-service';
+import { ServiceFactory } from './service-factory';
+import { logger } from '../utils/logger';
 
 /**
  * Implementation of CacheHeaderService for managing cache headers
  */
-export class DefaultCacheHeaderService implements CacheHeaderService {
+export class CacheHeaderServiceImpl implements CacheHeaderService {
+  /**
+   * Create a new CacheHeaderServiceImpl
+   */
+  constructor() {
+    logger.debug('CacheHeaderServiceImpl initialized');
+  }
+
   /**
    * Calculate Cache-Control header based on response status and config
    * @param status The HTTP status code
@@ -40,6 +48,9 @@ export class DefaultCacheHeaderService implements CacheHeaderService {
     // Create a new response to modify headers
     const newResponse = new Response(response.body, response);
     
+    // Get dependencies through factory
+    const cacheTagService = ServiceFactory.getCacheTagService();
+    
     // Set Cache-Control header based on response status
     const cacheControl = this.getCacheControlHeader(response.status, config);
     if (cacheControl) {
@@ -47,11 +58,11 @@ export class DefaultCacheHeaderService implements CacheHeaderService {
     }
     
     // Set Cache-Tag header for debugging and external systems
-    const assetType = 'assetType' in config ? (config as any).assetType : 'default';
-    const cacheTags = TagGenerator.generateTags(request, assetType);
+    const assetType = 'assetType' in config ? (config as Record<string, string>).assetType : 'default';
+    const cacheTags = cacheTagService.generateTags(request, assetType);
     if (cacheTags && cacheTags.length > 0) {
       // Format tags according to Cloudflare's requirements
-      const formattedTags = TagGenerator.formatTagsForHeader(cacheTags);
+      const formattedTags = cacheTagService.formatTagsForHeader(cacheTags);
       if (formattedTags) {
         newResponse.headers.set('Cache-Tag', formattedTags);
       }
@@ -59,7 +70,7 @@ export class DefaultCacheHeaderService implements CacheHeaderService {
     
     // Add debug header if needed - check both request header and environment variable
     const debugMode = request.headers.get('debug') === 'true' || 
-                     (globalThis as any).DEBUG_MODE === 'true';
+                     (globalThis as unknown as Record<string, string>).DEBUG_MODE === 'true';
     
     if (debugMode) {
       newResponse.headers.set(
@@ -69,18 +80,25 @@ export class DefaultCacheHeaderService implements CacheHeaderService {
           cacheKey: new URL(request.url).pathname,
           ttl: config.ttl,
           cacheTags,
-          environment: (globalThis as any).ENVIRONMENT || 'development',
+          environment: (globalThis as unknown as Record<string, string>).ENVIRONMENT || 'development',
           worker: {
-            name: (globalThis as any).name || 'caching',
-            version: (globalThis as any).VERSION || 'dev'
+            name: (globalThis as unknown as Record<string, string>).name || 'caching',
+            version: (globalThis as unknown as Record<string, string>).VERSION || 'dev'
           }
         }),
       );
     }
     
+    logger.debug('Applied cache headers', {
+      url: request.url,
+      statusCode: response.status,
+      assetType,
+      cacheControl
+    });
+    
     return newResponse;
   }
 }
 
-// Export default implementation
-export const CacheHeaderManager = new DefaultCacheHeaderService();
+// For backwards compatibility during refactoring
+export class DefaultCacheHeaderService extends CacheHeaderServiceImpl {}

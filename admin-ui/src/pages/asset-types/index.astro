@@ -1,0 +1,215 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+---
+
+<Layout title="Asset Types - Caching Admin">
+  <div class="flex justify-between items-center mb-6">
+    <h1 class="text-3xl font-bold">Asset Types</h1>
+    <a href="/asset-types/new">
+      <Button client:load>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+        Add Asset Type
+      </Button>
+    </a>
+  </div>
+  
+  <div id="loading-indicator" class="text-center py-8">
+    <div class="animate-spin h-8 w-8 border-t-2 border-b-2 border-blue-600 rounded-full mx-auto"></div>
+    <p class="text-gray-500 mt-4">Loading asset types...</p>
+  </div>
+  
+  <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+    Failed to load asset types. Please try again.
+  </div>
+  
+  <div id="empty-message" class="hidden text-center py-8">
+    <p class="text-gray-500">No asset types found. Click "Add Asset Type" to create one.</p>
+  </div>
+  
+  <div id="asset-types-grid" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 hidden">
+    <!-- Asset type cards will be dynamically inserted here -->
+  </div>
+</Layout>
+
+<script>
+  import { assetTypeApi } from '../../lib/api-client';
+  import type { AssetTypeData } from '../../lib/api-types';
+  
+  // Format seconds to human readable duration
+  function formatDuration(seconds: number): string {
+    if (seconds >= 31536000) { // 1 year
+      return `${Math.round(seconds / 31536000)}y`;
+    } else if (seconds >= 86400) { // 1 day
+      return `${Math.round(seconds / 86400)}d`;
+    } else if (seconds >= 3600) { // 1 hour
+      return `${Math.round(seconds / 3600)}h`;
+    } else if (seconds >= 60) { // 1 minute
+      return `${Math.round(seconds / 60)}m`;
+    } else {
+      return `${seconds}s`;
+    }
+  }
+  
+  // Format date to human readable format
+  function formatDate(dateString: string): string {
+    if (!dateString) return '';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+  
+  // Create a card for an asset type
+  function createAssetTypeCard(assetType: AssetTypeData): HTMLElement {
+    const cardElement = document.createElement('div');
+    
+    cardElement.innerHTML = `
+      <div class="h-full">
+        <Card>
+          <CardHeader>
+            <CardTitle>${assetType.name}</CardTitle>
+            <CardDescription>${assetType.pattern}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">TTL:</span>
+                <span>${formatDuration(assetType.ttl.ok)}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Query Params:</span>
+                <span>${assetType.queryParams?.include ? 'Yes' : 'No'}</span>
+              </div>
+              ${assetType.optimization ? `
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Optimization:</span>
+                <span>Enabled</span>
+              </div>` : ''}
+              ${assetType.minification ? `
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Minification:</span>
+                <span>Enabled</span>
+              </div>` : ''}
+              <div class="flex justify-between">
+                <span class="text-muted-foreground">Updated:</span>
+                <span>${formatDate(assetType.updatedAt || '')}</span>
+              </div>
+            </div>
+            <div class="flex justify-end mt-4">
+              <a href="/asset-types/${assetType.id}" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 mr-2">
+                Edit
+              </a>
+              <button data-asset-type-id="${assetType.id}" data-asset-type-name="${assetType.name}" class="delete-btn inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-destructive/10 h-9 px-4 py-2 text-destructive">
+                Delete
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    `;
+    
+    return cardElement.firstElementChild as HTMLElement;
+  }
+  
+  // Handle delete button clicks
+  function handleDeleteClick(event: Event) {
+    const button = event.target as HTMLElement;
+    const deleteButton = button.closest('.delete-btn') as HTMLButtonElement;
+    
+    if (!deleteButton) return;
+    
+    const id = deleteButton.dataset.assetTypeId;
+    const name = deleteButton.dataset.assetTypeName;
+    
+    if (!id || !name) return;
+    
+    if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+      deleteAssetType(id);
+    }
+  }
+  
+  // Delete an asset type
+  async function deleteAssetType(id: string) {
+    try {
+      const response = await assetTypeApi.delete(id);
+      
+      if (response.success) {
+        // Reload the asset types
+        loadAssetTypes();
+      } else {
+        alert(`Failed to delete asset type: ${response.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting asset type:', error);
+      alert('An error occurred while deleting the asset type. Please try again.');
+    }
+  }
+  
+  // Load all asset types from the API
+  async function loadAssetTypes() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const errorMessage = document.getElementById('error-message');
+    const emptyMessage = document.getElementById('empty-message');
+    const assetTypesGrid = document.getElementById('asset-types-grid');
+    
+    if (!loadingIndicator || !errorMessage || !emptyMessage || !assetTypesGrid) return;
+    
+    // Show loading indicator
+    loadingIndicator.classList.remove('hidden');
+    errorMessage.classList.add('hidden');
+    emptyMessage.classList.add('hidden');
+    assetTypesGrid.classList.add('hidden');
+    
+    try {
+      const response = await assetTypeApi.getAll();
+      
+      // Hide loading indicator
+      loadingIndicator.classList.add('hidden');
+      
+      if (response.success && response.data) {
+        // Clear the grid
+        assetTypesGrid.innerHTML = '';
+        
+        if (response.data.length === 0) {
+          // Show empty message if no asset types
+          emptyMessage.classList.remove('hidden');
+        } else {
+          // Show the grid and add the asset types
+          assetTypesGrid.classList.remove('hidden');
+          
+          // Add each asset type to the grid
+          response.data.forEach(assetType => {
+            const card = createAssetTypeCard(assetType);
+            assetTypesGrid.appendChild(card);
+          });
+          
+          // Add event listeners to delete buttons
+          document.querySelectorAll('.delete-btn').forEach(button => {
+            button.addEventListener('click', handleDeleteClick);
+          });
+        }
+      } else {
+        // Show error message
+        errorMessage.textContent = response.error || 'Failed to load asset types. Please try again.';
+        errorMessage.classList.remove('hidden');
+      }
+    } catch (error) {
+      // Hide loading indicator and show error message
+      loadingIndicator.classList.add('hidden');
+      errorMessage.classList.remove('hidden');
+      console.error('Error loading asset types:', error);
+    }
+  }
+  
+  // Load asset types when the page loads
+  document.addEventListener('DOMContentLoaded', loadAssetTypes);
+</script>

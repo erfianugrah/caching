@@ -1,70 +1,32 @@
-import { Services } from './services';
+import { CommandFactory } from './commands/command-factory';
 import { logger } from './utils/logger';
+import { initializeTelemetry } from './telemetry';
+import { ServiceFactory } from './services/service-factory';
 
-// Log startup information
-const environment = (globalThis as any).ENVIRONMENT || 'development';
-const logLevel = (globalThis as any).LOG_LEVEL || 'INFO';
-const debugMode = (globalThis as any).DEBUG_MODE === 'true' ? 'enabled' : 'disabled';
-const maxTags = (globalThis as any).MAX_CACHE_TAGS || '10';
+// Initialize services on startup
+CommandFactory.initialize();
+initializeTelemetry();
 
-logger.info('Caching service starting up', {
-  environment,
-  logLevel,
-  debugMode,
-  maxTags,
-  version: (globalThis as any).VERSION || 'dev'
-});
+logger.info('Caching service starting up with telemetry enabled');
 
 /**
  * Main worker handler for the caching service
  */
 export default {
   /**
-   * Handle fetch requests
+   * Handle fetch requests using the command pattern
    * @param request The request to handle
    * @returns The cached response
    */
   async fetch(request: Request): Promise<Response> {
-    try {
-      // Get configuration for this request
-      const config = Services.assetType.getConfigForRequest(request);
-      logger.debug('Asset type detected', { type: config.assetType });
-
-      // Get Cloudflare-specific options with dynamically generated cache tags
-      const cfOptions = Services.cfOptions.getCfOptions(request, config);
-      logger.debug('CF options generated', { cfOptions });
-
-      // Fetch with cache configuration
-      const originalResponse = await fetch(request, { 
-        cf: cfOptions as any // Type cast because Cloudflare types aren't exact
-      });
-      logger.info('Fetched response', { 
-        status: originalResponse.status, 
-        url: request.url 
-      });
-
-      // Apply cache headers and return
-      const response = Services.cacheHeader.applyCacheHeaders(
-        originalResponse,
-        request,
-        config
-      );
-
-      return response;
-    } catch (error) {
-      // Log error and return a generic error response
-      logger.error('Error processing request', { 
-        url: request.url, 
-        error: error instanceof Error ? error.message : String(error)
-      });
-      
-      return new Response('Cache service error', { 
-        status: 500,
-        headers: {
-          'Content-Type': 'text/plain',
-          'Cache-Control': 'no-store'
-        }
-      });
+    // Check if this is a debug request
+    const url = new URL(request.url);
+    if (url.pathname === '/__debug') {
+      const debugService = ServiceFactory.getDebugService();
+      return debugService.handleDebugRequest(request);
     }
+    
+    // Normal request processing
+    return CommandFactory.executeCache(request);
   },
 };

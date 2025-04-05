@@ -1,4 +1,15 @@
 import { AssetConfig, AssetTypeConfig, CfCacheOptions } from '../types/cache-config';
+import { EnvironmentConfig } from '../types/environment-config';
+
+/**
+ * Service for managing application configuration
+ */
+export interface ConfigService {
+  /**
+   * Get the current configuration
+   */
+  getConfig(): EnvironmentConfig;
+}
 
 /**
  * Service for detecting asset type from request
