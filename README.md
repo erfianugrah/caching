@@ -68,7 +68,14 @@ npm run deploy:staging
 
 ## Configuration
 
-Configuration is handled through environment variables in `wrangler.jsonc`:
+Configuration is managed through two systems:
+
+1. Environment variables in `wrangler.jsonc` for basic settings
+2. Dynamic configuration via Cloudflare KV for asset-specific rules
+
+### Environment Variables
+
+The following environment variables are defined in `wrangler.jsonc`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -77,15 +84,50 @@ Configuration is handled through environment variables in `wrangler.jsonc`:
 | `DEBUG_MODE` | Enable/disable debug mode | `false` |
 | `MAX_CACHE_TAGS` | Maximum number of cache tags per request | `10` |
 | `CACHE_TAG_NAMESPACE` | Namespace prefix for cache tags | `cf` |
+| `CONFIG_KV_NAMESPACE` | KV namespace binding for configuration storage | `CACHE_CONFIGURATION_STORE` |
+| `CONFIG_REFRESH_INTERVAL` | KV configuration refresh interval in seconds | `300` |
+| `ADMIN_API_SECRET` | Authentication secret for admin API (set as a secret) | - |
+
+### KV-based Configuration
+
+The service uses Cloudflare KV for dynamic configuration storage, allowing:
+
+- Updates without redeployment
+- Environment-specific configurations
+- Detailed asset-type rules with regex patterns
+- Admin API for configuration management
+
+#### Initializing KV Configuration
+
+To initialize or update KV configuration from the `config-init.json` file:
+
+```bash
+# Initialize for default environment
+npm run init-kv
+
+# Initialize for specific environment
+npm run init-kv:dev
+npm run init-kv:staging
+npm run init-kv:prod
+```
+
+#### Configuration Structure
+
+The KV configuration consists of two main keys:
+
+1. `environment-config`: Global environment settings
+2. `asset-configs`: Asset-specific caching rules
 
 ### Asset Type Configuration
 
-Caching rules are defined by asset type in `asset-type-service.ts`, including:
+Caching rules are defined per asset type with the following properties:
 
 - URL pattern matching with regex
-- TTL values for different status codes
-- Query parameter handling
-- Image and CSS optimization settings
+- TTL values for different status codes (ok, redirects, clientError, serverError)
+- Query parameter handling (include/exclude parameters, sorting, normalization)
+- Cache variants based on client hints and headers
+- Content optimization settings (minification, compression)
+- Cache directives (immutable, stale-while-revalidate, etc.)
 
 ## Services
 

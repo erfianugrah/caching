@@ -14,6 +14,9 @@ export { ConfigService } from './config-service';
 // Export asset type configs for testing
 export { defaultAssetConfigs } from './asset-type-service';
 
+// Export the RequestProcessingService for direct use
+export { DefaultRequestProcessingService } from './request-processing-service';
+
 /**
  * Backwards compatibility layer for tests
  * @deprecated Use ServiceFactory instead
@@ -33,6 +36,9 @@ export const Services = {
   },
   get cfOptions() {
     return ServiceFactory.getCfOptionsService();
+  },
+  get requestProcessing() {
+    return ServiceFactory.getRequestProcessingService();
   }
 };
 

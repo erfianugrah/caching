@@ -1,6 +1,7 @@
 import { AssetConfigMap, AssetTypeConfig } from '../types/cache-config';
 import { AssetTypeService } from './interfaces';
 import { logger } from '../utils/logger';
+import { ConfigService } from './config-service';
 
 /**
  * Default configurations for common asset types
@@ -141,31 +142,76 @@ export const defaultAssetConfigs: AssetConfigMap = {
 
 /**
  * Implementation of AssetTypeService for detecting asset types in requests
+ * 
+ * This service supports both local/default configurations and dynamic
+ * configurations loaded from KV storage via the ConfigService.
  */
 export class AssetTypeServiceImpl implements AssetTypeService {
   private assetConfigs: AssetConfigMap;
+  private configService: ConfigService | null = null;
+  private useKvConfigs = false;
   
   /**
    * Create a new AssetTypeService
    * @param customConfigs Optional custom asset configurations to override defaults
+   * @param configService Optional configuration service for dynamic configs
+   * @param useKvConfigs Whether to use KV configs (if false, uses only local configs)
    */
-  constructor(customConfigs?: AssetConfigMap) {
+  constructor(
+    customConfigs?: AssetConfigMap,
+    configService?: ConfigService,
+    useKvConfigs = true
+  ) {
+    // Initialize with provided configs or defaults
     this.assetConfigs = customConfigs || defaultAssetConfigs;
-    logger.debug('AssetTypeService initialized with configs', { 
-      count: Object.keys(this.assetConfigs).length 
+    
+    // Set up dynamic configuration if provided
+    this.configService = configService || null;
+    this.useKvConfigs = useKvConfigs && !!this.configService;
+    
+    logger.debug('AssetTypeService initialized', { 
+      configCount: Object.keys(this.assetConfigs).length,
+      useKvConfigs: this.useKvConfigs
     });
   }
   
   /**
    * Get the configuration for a request
+   * This method is kept synchronous for backward compatibility.
+   * It uses the local configs by default, ignoring KV configs.
+   * 
    * @param request The request to get configuration for
    * @returns The matched asset configuration with type information
    */
   public getConfigForRequest(request: Request): AssetTypeConfig {
+    return this.getConfigForRequestSync(request);
+  }
+  
+  /**
+   * Get the configuration for a request asynchronously
+   * This method will try to load configurations from KV if enabled
+   * 
+   * @param request The request to get configuration for
+   * @returns Promise resolving to the matched asset configuration with type information
+   */
+  public async getConfigForRequestAsync(request: Request): Promise<AssetTypeConfig> {
+    let configs = this.assetConfigs;
+    
+    // Try to load configs from KV if enabled
+    if (this.useKvConfigs && this.configService) {
+      try {
+        configs = await this.configService.getAssetConfigs();
+      } catch (error) {
+        logger.warn('Failed to load asset configs from KV, using defaults', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    
     const url = new URL(request.url);
     
     // Find matching asset type based on regex
-    for (const [assetType, config] of Object.entries(this.assetConfigs)) {
+    for (const [assetType, config] of Object.entries(configs)) {
       if (config.regex.test(url.pathname)) {
         logger.debug('Asset type matched', { assetType, path: url.pathname });
         return {
@@ -177,6 +223,50 @@ export class AssetTypeServiceImpl implements AssetTypeService {
     
     // Default config for unmatched assets
     logger.debug('No asset type matched, using default', { path: url.pathname });
+    return {
+      assetType: 'default',
+      useQueryInCacheKey: true,
+      // Safe query parameter handling for unknown assets
+      queryParams: {
+        include: true,
+        // Exclude common sensitive or dynamic parameters
+        excludeParams: [
+          'token', 'auth', 'key', 'signature', 'timestamp', 't',
+          'user', 'session', 'login', 'password', 'secret'
+        ],
+        sortParams: true,
+      },
+      regex: /.*/,
+      ttl: {
+        ok: 0, // Don't cache by default
+        redirects: 0,
+        clientError: 0,
+        serverError: 0,
+      },
+    };
+  }
+  
+  /**
+   * Synchronous version of getConfigForRequest that uses only the local configs
+   * @param request The request to get configuration for
+   * @returns The matched asset configuration with type information
+   */
+  private getConfigForRequestSync(request: Request): AssetTypeConfig {
+    const url = new URL(request.url);
+    
+    // Find matching asset type based on regex
+    for (const [assetType, config] of Object.entries(this.assetConfigs)) {
+      if (config.regex.test(url.pathname)) {
+        logger.debug('Asset type matched (sync)', { assetType, path: url.pathname });
+        return {
+          assetType,
+          ...config,
+        };
+      }
+    }
+    
+    // Default config for unmatched assets
+    logger.debug('No asset type matched, using default (sync)', { path: url.pathname });
     return {
       assetType: 'default',
       useQueryInCacheKey: true,

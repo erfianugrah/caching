@@ -14,7 +14,10 @@
     "ip": "0.0.0.0"
   },
   "vars": {
-    "LOG_LEVEL": "DEBUG"
+    "LOG_LEVEL": "DEBUG",
+    "CONFIG_KV_NAMESPACE": "CACHE_CONFIGURATION_STORE",
+    // ADMIN_API_SECRET set separately as a secret
+    "CONFIG_REFRESH_INTERVAL": "300"
   },
   "env": {
     "staging": {
@@ -23,8 +26,17 @@
         "ENVIRONMENT": "staging",
         "DEBUG_MODE": "true",
         "MAX_CACHE_TAGS": "20",
-        "CACHE_TAG_NAMESPACE": "cf"
+        "CACHE_TAG_NAMESPACE": "cf",
+        "CONFIG_KV_NAMESPACE": "CACHE_CONFIGURATION_STORE",
+        // ADMIN_API_SECRET set separately as a secret
+        "CONFIG_REFRESH_INTERVAL": "300"
       },
+      "kv_namespaces": [
+        {
+          "binding": "CACHE_CONFIGURATION_STORE",
+          "id": "a51cb6eeb7684f45a73173ec75e3f14e"
+        }
+      ],
       "workers_dev": true,
       "usage_model": "bundled"
     },
@@ -32,11 +44,20 @@
       "name": "prod-caching",
       "vars": {
         "ENVIRONMENT": "production",
-        "LOG_LEVEL": "DEBUG",
-        "DEBUG_MODE": "true",
+        "LOG_LEVEL": "INFO",
+        "DEBUG_MODE": "false",
         "MAX_CACHE_TAGS": "1000",
-        "CACHE_TAG_NAMESPACE": "cf"
+        "CACHE_TAG_NAMESPACE": "cf",
+        "CONFIG_KV_NAMESPACE": "CACHE_CONFIGURATION_STORE",
+        // ADMIN_API_SECRET set separately as a secret
+        "CONFIG_REFRESH_INTERVAL": "600"
       },
+      "kv_namespaces": [
+        {
+          "binding": "CACHE_CONFIGURATION_STORE",
+          "id": "a51cb6eeb7684f45a73173ec75e3f14e"
+        }
+      ],
       "routes": [
         {
           "pattern": "*jellyfin.erfianugrah.com/*",
@@ -51,9 +72,26 @@
         "DEBUG_MODE": "true",
         "LOG_LEVEL": "DEBUG",
         "MAX_CACHE_TAGS": "20",
-        "CACHE_TAG_NAMESPACE": "cf"
+        "CACHE_TAG_NAMESPACE": "cf",
+        "CONFIG_KV_NAMESPACE": "CACHE_CONFIGURATION_STORE",
+        // ADMIN_API_SECRET set separately as a secret
+        "CONFIG_REFRESH_INTERVAL": "60"
       },
+      "kv_namespaces": [
+        {
+          "binding": "CACHE_CONFIGURATION_STORE",
+          "id": "a51cb6eeb7684f45a73173ec75e3f14e",
+          "preview_id": "a51cb6eeb7684f45a73173ec75e3f14e"
+        }
+      ],
       "workers_dev": true
     }
-  }
+  },
+  "kv_namespaces": [
+    {
+      "binding": "CACHE_CONFIGURATION_STORE",
+      "id": "a51cb6eeb7684f45a73173ec75e3f14e",
+      "preview_id": "a51cb6eeb7684f45a73173ec75e3f14e"
+    }
+  ]
 }

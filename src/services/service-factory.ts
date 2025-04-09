@@ -1,5 +1,12 @@
 import { ConfigService } from './config-service';
-import { AssetTypeService, CacheKeyService, CacheHeaderService, CacheTagService, CfOptionsService } from './interfaces';
+import { 
+  AssetTypeService, 
+  CacheKeyService, 
+  CacheHeaderService, 
+  CacheTagService, 
+  CfOptionsService,
+  RequestProcessingService
+} from './interfaces';
 import { logger } from '../utils/logger';
 
 // Direct imports of service implementations
@@ -8,6 +15,7 @@ import { DefaultCacheKeyService } from './cache-key-service';
 import { DefaultCacheHeaderService } from './cache-header-service';
 import { DefaultCacheTagService } from './cache-tag-service';
 import { DefaultCfOptionsService } from './cf-options-service';
+import { DefaultRequestProcessingService } from './request-processing-service';
 import { DebugService } from './debug-service';
 
 /**
@@ -22,6 +30,7 @@ export class ServiceFactory {
   private static cacheHeaderService: CacheHeaderService = new DefaultCacheHeaderService();
   private static cacheTagService: CacheTagService = new DefaultCacheTagService();
   private static cfOptionsService: CfOptionsService = new DefaultCfOptionsService();
+  private static requestProcessingService: RequestProcessingService = new DefaultRequestProcessingService();
   private static debugService: DebugService = DebugService.getInstance();
 
   // Initialize all services immediately
@@ -75,6 +84,14 @@ export class ServiceFactory {
    */
   static getCfOptionsService(): CfOptionsService {
     return this.cfOptionsService;
+  }
+  
+  /**
+   * Get the RequestProcessingService
+   * @returns RequestProcessingService instance
+   */
+  static getRequestProcessingService(): RequestProcessingService {
+    return this.requestProcessingService;
   }
   
   /**

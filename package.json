@@ -13,21 +13,33 @@
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
         "test:watch": "vitest",
-        "format": "prettier --write 'src/**/*.ts'"
+        "format": "prettier --write 'src/**/*.ts'",
+        "init-kv": "ts-node src/scripts/init-kv-config.ts",
+        "init-kv:dev": "ts-node src/scripts/init-kv-config.ts --env dev",
+        "init-kv:staging": "ts-node src/scripts/init-kv-config.ts --env staging",
+        "init-kv:prod": "ts-node src/scripts/init-kv-config.ts --env prod",
+        "get-kv": "ts-node src/scripts/get-kv-config.ts"
     },
     "author": "Erfi Anugrah",
     "license": "ISC",
     "devDependencies": {
         "@cloudflare/workers-types": "^4.20240320.1",
+        "@types/pino": "^7.0.5",
         "@typescript-eslint/eslint-plugin": "^7.5.0",
         "@typescript-eslint/parser": "^7.5.0",
+        "chalk": "^5.4.1",
+        "commander": "^13.1.0",
         "eslint": "^8.57.0",
+        "node-fetch": "^2.7.0",
+        "pino-pretty": "^10.3.1",
         "prettier": "^3.2.4",
+        "ts-node": "^10.9.2",
         "typescript": "^5.8.3",
         "vitest": "^1.2.1",
         "wrangler": "^4.7.2"
     },
     "dependencies": {
+        "pino": "^8.21.0",
         "zod": "^3.24.2"
     }
 }
