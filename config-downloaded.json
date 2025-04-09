@@ -1,0 +1,227 @@
+{
+  "asset-configs": {
+    "video": {
+      "regexPattern": "(.*\\/Video)|(.*\\.(m4s|mp4|ts|avi|mpeg|mpg|mkv|bin|webm|vob|flv|m2ts|mts|3gp|m4v|wmv|qt))$",
+      "useQueryInCacheKey": false,
+      "queryParams": {
+        "include": false
+      },
+      "ttl": {
+        "ok": 31556952,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "image": {
+      "regexPattern": "(.*\\/Images)|(.*\\.(jpg|jpeg|png|bmp|pict|tif|tiff|webp|gif|heif|exif|bat|bpg|ppm|pgn|pbm|pnm))$",
+      "useQueryInCacheKey": true,
+      "queryParams": {
+        "include": true,
+        "includeParams": [
+          "width",
+          "height",
+          "format",
+          "quality",
+          "fit"
+        ],
+        "excludeParams": [
+          "t",
+          "timestamp",
+          "user",
+          "session"
+        ],
+        "sortParams": true,
+        "normalizeValues": true
+      },
+      "variants": {
+        "useAcceptHeader": true,
+        "clientHints": [
+          "DPR",
+          "Width"
+        ],
+        "useUserAgent": true
+      },
+      "imageOptimization": true,
+      "ttl": {
+        "ok": 3600,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "frontEnd": {
+      "regexPattern": "^.*\\.(css|js)$",
+      "useQueryInCacheKey": true,
+      "queryParams": {
+        "include": true,
+        "includeParams": [
+          "v",
+          "version",
+          "build"
+        ],
+        "excludeParams": [
+          "_",
+          "cb",
+          "t"
+        ],
+        "sortParams": true
+      },
+      "minifyCss": true,
+      "ttl": {
+        "ok": 3600,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "audio": {
+      "regexPattern": "(.*\\/Audio)|(.*\\.(flac|aac|mp3|alac|aiff|wav|ogg|aiff|opus|ape|wma|3gp))$",
+      "useQueryInCacheKey": false,
+      "queryParams": {
+        "include": false
+      },
+      "ttl": {
+        "ok": 31556952,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "directPlay": {
+      "regexPattern": ".*(\\/Download)",
+      "useQueryInCacheKey": false,
+      "queryParams": {
+        "include": false
+      },
+      "ttl": {
+        "ok": 31556952,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "manifest": {
+      "regexPattern": "^.*\\.(m3u8|mpd)$",
+      "useQueryInCacheKey": false,
+      "queryParams": {
+        "include": true,
+        "includeParams": [
+          "quality",
+          "format"
+        ],
+        "sortParams": true
+      },
+      "ttl": {
+        "ok": 3,
+        "redirects": 2,
+        "clientError": 1,
+        "serverError": 0
+      }
+    },
+    "api": {
+      "regexPattern": "^.*\\/api\\/.*",
+      "useQueryInCacheKey": true,
+      "queryParams": {
+        "include": true,
+        "excludeParams": [
+          "token",
+          "auth",
+          "key",
+          "signature",
+          "timestamp",
+          "t"
+        ],
+        "sortParams": true,
+        "normalizeValues": true
+      },
+      "variants": {
+        "useAcceptHeader": true,
+        "headers": [
+          "Accept-Language"
+        ],
+        "cookies": [
+          "preferredLanguage"
+        ]
+      },
+      "ttl": {
+        "ok": 60,
+        "redirects": 30,
+        "clientError": 10,
+        "serverError": 0
+      }
+    },
+    "static": {
+      "regexPattern": "^.*\\.(html|htm|xml|json|txt|md|pdf|ico|svg)$",
+      "useQueryInCacheKey": true,
+      "queryParams": {
+        "include": true,
+        "includeParams": [
+          "v",
+          "version"
+        ],
+        "excludeParams": [
+          "_",
+          "t",
+          "cb"
+        ],
+        "sortParams": true
+      },
+      "ttl": {
+        "ok": 600,
+        "redirects": 60,
+        "clientError": 5,
+        "serverError": 0
+      }
+    },
+    "font": {
+      "regexPattern": "^.*\\.(woff|woff2|eot|ttf|otf)$",
+      "useQueryInCacheKey": true,
+      "queryParams": {
+        "include": true,
+        "includeParams": [
+          "v",
+          "version"
+        ],
+        "sortParams": true
+      },
+      "ttl": {
+        "ok": 604800,
+        "redirects": 60,
+        "clientError": 10,
+        "serverError": 0
+      },
+      "cacheDirectives": {
+        "immutable": true
+      }
+    }
+  },
+  "environment-config": {
+    "environment": "production",
+    "logLevel": "INFO",
+    "debugMode": false,
+    "maxCacheTags": 1000,
+    "cacheTagNamespace": "cf",
+    "version": "1.0.0",
+    "configRefreshInterval": 600,
+    "configKvNamespace": "CACHE_CONFIGURATION_STORE",
+    "logging": {
+      "level": "INFO",
+      "includeDebugInfo": false,
+      "sampleRate": 0.1,
+      "redactSensitiveInfo": true,
+      "performanceMetrics": true,
+      "alwaysLogPaths": [
+        "/admin",
+        "/__debug",
+        "/api/config"
+      ],
+      "neverLogPaths": [
+        "/favicon.ico",
+        "/Images/favicon.ico",
+        "/heartbeat",
+        "/static/assets/"
+      ]
+    }
+  }
+}

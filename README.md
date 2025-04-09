@@ -97,19 +97,35 @@ The service uses Cloudflare KV for dynamic configuration storage, allowing:
 - Detailed asset-type rules with regex patterns
 - Admin API for configuration management
 
-#### Initializing KV Configuration
+#### Managing KV Configuration
 
-To initialize or update KV configuration from the `config-init.json` file:
+The service includes a unified TypeScript utility for managing KV configuration with schema validation:
 
 ```bash
-# Initialize for default environment
-npm run init-kv
+# List configuration keys in KV
+npm run config:list
 
-# Initialize for specific environment
-npm run init-kv:dev
-npm run init-kv:staging
-npm run init-kv:prod
+# Upload configuration to KV
+npm run config:upload            # Default environment
+npm run config:upload:dev        # Development environment
+npm run config:upload:staging    # Staging environment
+npm run config:upload:prod       # Production environment
+
+# Download configuration from KV
+npm run config:download          # Default environment
+npm run config:download:dev      # Development environment
+npm run config:download:staging  # Staging environment
+npm run config:download:prod     # Production environment
+
+# Advanced usage with custom parameters
+npm run config -- upload --dry-run               # Test upload without making changes
+npm run config -- upload --skip-validation       # Upload without schema validation
+npm run config -- download --output-file ./custom-config.json
 ```
+
+The configuration manager uses the structure defined in `config.json` file and validates it against the Zod schemas to ensure compliance with the codebase's requirements before uploading.
+
+For complete documentation, see the [Scripts Documentation](./scripts/README.md).
 
 #### Configuration Structure
 
@@ -176,11 +192,16 @@ See [Strategies Documentation](./docs/internal/strategies.md) for detailed infor
 │   ├── types/             # TypeScript interfaces
 │   ├── utils/             # Utility functions
 │   └── cache.ts           # Main entry point
+├── scripts/              # Management scripts
+│   ├── config-uploader.ts   # Upload configs to KV store
+│   ├── config-downloader.ts # Download configs from KV store
+│   └── README.md            # Scripts documentation
 ├── docs/                 # Documentation directory
 │   ├── internal/         # Internal documentation for developers
 │   └── public/           # Public documentation for users
-├── CLAUDE.md              # Guidelines for Claude AI assistance
-└── README.md              # This file
+├── config-init.json      # Initial configuration template
+├── CLAUDE.md             # Guidelines for Claude AI assistance
+└── README.md             # This file
 ```
 
 ## Cache Tag Purging

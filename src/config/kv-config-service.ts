@@ -20,6 +20,18 @@ import { defaultAssetConfigs } from '../services/asset-type-service';
 import { z } from 'zod';
 
 /**
+ * Interface for KV metadata
+ */
+interface KVMetadata {
+  version?: string;
+  createdAt?: string;
+  createdBy?: string;
+  description?: string;
+  environment?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Two-tier caching system for improved performance
  * - L1: In-memory cache with short TTL (typically 30s) for high frequency access
  * - L2: KV storage for persistence (with standard refresh interval)
@@ -204,7 +216,7 @@ export class KVConfigService {
               kvConfigProperties: Object.keys(kvConfig).join(', '),
               configSize: JSON.stringify(kvConfig).length,
               metadata: metadata ? JSON.stringify(metadata) : 'none',
-              configVersion: metadata?.version || 'unknown'
+              configVersion: metadata ? (metadata as KVMetadata).version || 'unknown' : 'unknown'
             });
             
             // Parse and validate the configuration
@@ -214,32 +226,40 @@ export class KVConfigService {
             this.configRefreshInterval = parsedConfig.configRefreshInterval * 1000;
             
             const fetchTime = performance.now() - fetchStartTime;
-            logger.info('Successfully loaded environment config from KV', {
+            logger.info('✅ Successfully loaded environment config from KV', {
               environment: parsedConfig.environment,
               logLevel: parsedConfig.logLevel,
               refreshIntervalSeconds: parsedConfig.configRefreshInterval,
               fetchTimeMs: fetchTime.toFixed(2),
-              source: 'KV',
-              configVersion: metadata?.version || parsedConfig.version || 'unversioned'
+              source: 'KV_CONFIG',
+              configVersion: metadata ? (metadata as KVMetadata).version || parsedConfig.version || 'unversioned' : parsedConfig.version || 'unversioned'
             });
             
             return parsedConfig;
           } else {
-            logger.warn('KV environment config not found, using defaults', {
+            logger.warn('⚠️ KV environment config not found, using DEFAULT VALUES', {
               key: KV_KEY_ENV_CONFIG,
-              source: 'default'
+              source: 'DEFAULT_CONFIG',
+              worker: 'caching',
+              configType: 'environment'
             });
           }
         } catch (error) {
           if (error instanceof z.ZodError) {
-            logger.warn('Invalid environment config in KV, using default', {
+            logger.warn('⚠️ Invalid environment config in KV, using DEFAULT VALUES', {
               errors: error.errors,
-              source: 'default-validation-error'
+              source: 'DEFAULT_CONFIG',
+              reason: 'validation_failed',
+              worker: 'caching',
+              configType: 'environment'
             });
           } else {
-            logger.error('Failed to load environment config from KV', {
+            logger.error('❌ Failed to load environment config from KV, using DEFAULT VALUES', {
               error: error instanceof Error ? error.message : String(error),
-              source: 'default-fetch-error'
+              source: 'DEFAULT_CONFIG',
+              reason: 'fetch_error',
+              worker: 'caching',
+              configType: 'environment'
             });
           }
         }
@@ -364,7 +384,7 @@ export class KVConfigService {
               assetTypes: Object.keys(kvConfigs).join(', '),
               configSize: JSON.stringify(kvConfigs).length,
               metadata: metadata ? JSON.stringify(metadata) : 'none',
-              configVersion: metadata?.version || 'unknown'
+              configVersion: metadata ? (metadata as KVMetadata).version || 'unknown' : 'unknown'
             });
             
             // Parse and validate the configurations
@@ -376,31 +396,42 @@ export class KVConfigService {
             }
             
             const fetchTime = performance.now() - fetchStartTime;
-            logger.info('Successfully loaded asset configs from KV', {
+            logger.info('✅ Successfully loaded asset configs from KV', {
               count: assetConfigs.size,
               assetTypes: Array.from(assetConfigs.keys()).join(', '),
               fetchTimeMs: fetchTime.toFixed(2),
-              source: 'KV',
-              configVersion: metadata?.version || 'unversioned'
+              source: 'KV_CONFIG',
+              worker: 'caching',
+              configType: 'asset-configs',
+              configVersion: metadata ? (metadata as KVMetadata).version || 'unversioned' : 'unversioned'
             });
             
             return assetConfigs;
           } else {
-            logger.warn('KV asset configs not found, using defaults', {
+            logger.warn('⚠️ KV asset configs not found, using DEFAULT VALUES', {
               key: KV_KEY_ASSET_CONFIGS,
-              source: 'default'
+              source: 'DEFAULT_CONFIG',
+              worker: 'caching',
+              configType: 'asset-configs',
+              reason: 'not_found'
             });
           }
         } catch (error) {
           if (error instanceof z.ZodError) {
-            logger.warn('Invalid asset configs in KV, using defaults', {
+            logger.warn('⚠️ Invalid asset configs in KV, using DEFAULT VALUES', {
               errors: error.errors,
-              source: 'default-validation-error'
+              source: 'DEFAULT_CONFIG',
+              worker: 'caching', 
+              configType: 'asset-configs',
+              reason: 'validation_failed'
             });
           } else {
-            logger.error('Failed to load asset configs from KV', {
+            logger.error('❌ Failed to load asset configs from KV, using DEFAULT VALUES', {
               error: error instanceof Error ? error.message : String(error),
-              source: 'default-fetch-error'
+              source: 'DEFAULT_CONFIG',
+              worker: 'caching',
+              configType: 'asset-configs',
+              reason: 'fetch_error'
             });
           }
         }
@@ -653,8 +684,18 @@ export class KVConfigService {
         deletedAt: new Date().toISOString(),
       };
       
-      // Save updated configs with deletion metadata
-      const success = await this.saveAssetConfigs(updatedConfigs, deletionMetadata);
+      // Create metadata for the deletion operation
+      const configMetadata = {
+        version: '1.0.0',
+        createdAt: new Date().toISOString(),
+        createdBy: 'system',
+        description: `Asset type '${assetType}' deleted`,
+        // Add the deletion metadata
+        ...deletionMetadata
+      };
+      
+      // Save updated configs with proper metadata format
+      const success = await this.saveAssetConfigs(updatedConfigs, configMetadata);
       
       const deleteTime = performance.now() - deleteStartTime;
       logger.info(`${success ? 'Successfully deleted' : 'Failed to delete'} asset config for '${assetType}'`, {

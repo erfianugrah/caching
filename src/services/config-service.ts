@@ -19,6 +19,10 @@ export class ConfigService {
   private envConfig: EnvironmentConfig;
   private kvConfigService: KVConfigService | null = null;
   private initialized = false;
+  private usingKvEnvironmentConfig = false;
+  private usingKvAssetConfigs = false;
+  private environmentConfigLastUpdated: string | null = null;
+  private assetConfigsLastUpdated: string | null = null;
 
   /**
    * Create a new ConfigService instance
@@ -97,6 +101,8 @@ export class ConfigService {
       if (kvNamespace) {
         const loadStartTime = performance.now();
         this.envConfig = await this.kvConfigService.getEnvironmentConfig();
+        this.usingKvEnvironmentConfig = true;
+        this.environmentConfigLastUpdated = new Date().toISOString();
         const loadTime = performance.now() - loadStartTime;
         
         // Apply logging configuration if present
@@ -337,7 +343,49 @@ export class ConfigService {
       debugMode: this.envConfig.debugMode ? 'enabled' : 'disabled',
       maxCacheTags: this.envConfig.maxCacheTags,
       kvNamespace: this.envConfig.configKvNamespace || 'none',
-      version: this.envConfig.version
+      version: this.envConfig.version,
+      source: this.usingKvEnvironmentConfig ? 'KV_CONFIG' : 'DEFAULT_CONFIG'
     });
+  }
+
+  /**
+   * Check if environment config is from KV or defaults
+   * @returns true if using KV environment config, false if using defaults
+   */
+  isUsingKvEnvironmentConfig(): boolean {
+    return this.usingKvEnvironmentConfig;
+  }
+  
+  /**
+   * Check if asset configs are from KV or defaults
+   * @returns true if using KV asset configs, false if using defaults
+   */
+  isUsingKvAssetConfigs(): boolean {
+    return this.usingKvAssetConfigs;
+  }
+  
+  /**
+   * Get the last time environment config was updated
+   * @returns ISO timestamp or null if using defaults
+   */
+  getEnvironmentConfigLastUpdated(): string | null {
+    return this.environmentConfigLastUpdated;
+  }
+  
+  /**
+   * Get the last time asset configs were updated
+   * @returns ISO timestamp or null if using defaults
+   */
+  getAssetConfigsLastUpdated(): string | null {
+    return this.assetConfigsLastUpdated;
+  }
+  
+  /**
+   * Get the number of asset configs
+   * @returns The number of asset configs
+   */
+  getAssetConfigCount(): number {
+    // defaultAssetConfigs is a Record<string, AssetConfig>, not a Map
+    return Object.keys(defaultAssetConfigs).length;
   }
 }

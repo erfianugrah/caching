@@ -135,7 +135,8 @@ export default {
       if (url.pathname === '/__debug') {
         requestLogger.info('Debug request received');
         const debugService = ServiceFactory.getDebugService();
-        const response = await debugService.handleDebugRequest(request);
+        // Promise.resolve ensures we're properly handling the response as a Promise
+        const response = await Promise.resolve(debugService.handleDebugRequest(request));
         
         // Log response and return
         logger.logResponse(response, request, {

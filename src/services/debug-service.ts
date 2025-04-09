@@ -73,9 +73,41 @@ const DEBUG_HTML_TEMPLATE = `
         });
     }
     
+    function fetchConfigStatus() {
+      fetch(window.location.href + '?config=true')
+        .then(response => response.json())
+        .then(data => {
+          // Update config status metrics
+          document.getElementById('env-config-source').textContent = data.environment.source;
+          document.getElementById('asset-configs-source').textContent = data.assetConfigs.source;
+          document.getElementById('environment-name').textContent = data.environment.environment;
+          document.getElementById('asset-config-count').textContent = data.assetConfigs.count;
+          
+          // Display the panel
+          document.getElementById('config-status-panel').style.display = 'block';
+          
+          // Format based on source
+          const envSourceElement = document.getElementById('env-config-source');
+          const assetSourceElement = document.getElementById('asset-configs-source');
+          
+          if (data.environment.source === 'KV_CONFIG') {
+            envSourceElement.style.color = '#27ae60'; // Green
+          } else {
+            envSourceElement.style.color = '#e67e22'; // Orange
+          }
+          
+          if (data.assetConfigs.source === 'KV_CONFIG') {
+            assetSourceElement.style.color = '#27ae60'; // Green
+          } else {
+            assetSourceElement.style.color = '#e67e22'; // Orange
+          }
+        });
+    }
+    
     // Refresh data on load
     window.onload = function() {
       refreshDebugData();
+      fetchConfigStatus(); // Also load config status
       // Set up auto-refresh every 30 seconds
       setInterval(refreshDebugData, 30000);
     };
@@ -86,7 +118,34 @@ const DEBUG_HTML_TEMPLATE = `
   <p>Last updated: <span id="last-updated">-</span> 
      <button class="refresh-button" onclick="refreshDebugData()">Refresh Data</button>
      <button class="reset-button" onclick="resetTelemetry()">Reset Telemetry</button>
+     <button class="refresh-button" onclick="fetchConfigStatus()" style="background-color: #27ae60;">Check Config Status</button>
   </p>
+  
+  <div id="config-status-panel" style="display: none; margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 5px; border-left: 5px solid #2980b9;">
+    <h3 style="margin-top: 0;">Configuration Status</h3>
+    <div class="metrics-container">
+      <div class="metric-card">
+        <div class="metric-name">Environment Config</div>
+        <div class="metric-value" id="env-config-source">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-name">Asset Configs</div>
+        <div class="metric-value" id="asset-configs-source">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-name">Environment</div>
+        <div class="metric-value" id="environment-name">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-name">Asset Types</div>
+        <div class="metric-value" id="asset-config-count">-</div>
+      </div>
+    </div>
+    <div style="margin-top: 15px; font-size: 0.9em; color: #7f8c8d;">
+      <p><strong>KV_CONFIG</strong>: Using configuration from Cloudflare KV Store<br>
+      <strong>DEFAULT_CONFIG</strong>: Using built-in default configuration</p>
+    </div>
+  </div>
   
   <h2>Performance Overview</h2>
   <div class="metrics-container">
@@ -181,12 +240,55 @@ export class DebugService {
       });
     }
     
+    // Check if this is a request for configuration status
+    if (url.searchParams.has('config')) {
+      // Import the ConfigService only when needed to avoid circular dependencies
+      const { ConfigService } = require('../services/config-service');
+      const configService = new ConfigService();
+      
+      // Get configuration source information
+      const configStatus = {
+        timestamp: new Date().toISOString(),
+        environment: {
+          source: configService.isUsingKvEnvironmentConfig() ? 'KV_CONFIG' : 'DEFAULT_CONFIG',
+          lastUpdated: configService.getEnvironmentConfigLastUpdated(),
+          environment: configService.getEnvironmentConfig().environment
+        },
+        assetConfigs: {
+          source: configService.isUsingKvAssetConfigs() ? 'KV_CONFIG' : 'DEFAULT_CONFIG',
+          lastUpdated: configService.getAssetConfigsLastUpdated(),
+          count: configService.getAssetConfigCount()
+        }
+      };
+      
+      return new Response(JSON.stringify(configStatus, null, 2), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Default: return JSON telemetry data
     const report = reporting.generateReport({
       includePerformance: true,
       includeCacheAnalytics: true,
       detailedBreakdown: true
     });
+    
+    // Add config source information 
+    try {
+      const { ConfigService } = require('../services/config-service');
+      const configService = new ConfigService();
+      
+      // Add to report as extra data (not part of the CompleteTelemetryReport type)
+      (report as any).configStatus = {
+        environmentConfigSource: configService.isUsingKvEnvironmentConfig() ? 'KV_CONFIG' : 'DEFAULT_CONFIG',
+        assetConfigsSource: configService.isUsingKvAssetConfigs() ? 'KV_CONFIG' : 'DEFAULT_CONFIG'
+      };
+    } catch (error) {
+      // Add to report as extra data
+      (report as any).configStatus = {
+        error: 'Could not determine configuration source'
+      };
+    }
     
     return new Response(JSON.stringify(report, null, 2), {
       headers: { 'Content-Type': 'application/json' }
