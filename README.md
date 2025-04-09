@@ -7,6 +7,8 @@ A modern, service-oriented TypeScript implementation for intelligent content-awa
 - Asset-specific caching rules based on file patterns
 - Content-specific optimization strategies
 - Cache tag support for efficient invalidation
+- Dynamic configuration via Cloudflare KV with schema validation
+- Two-tier configuration system (environment variables + KV)
 - Comprehensive error handling and logging
 - Telemetry and performance monitoring
 - Real-time debug dashboard
@@ -90,16 +92,41 @@ The following environment variables are defined in `wrangler.jsonc`:
 
 ### KV-based Configuration
 
+```mermaid
+flowchart TD
+    Worker[Worker Service] --> |Initialization| CS[ConfigService]
+    CS --> |Lazy loading| KVCS[KVConfigService]
+    KVCS --> |Check L1 cache| L1[In-memory Cache]
+    L1 --> |Cache hit| CV[Cached Values]
+    L1 --> |Cache miss| KV[Cloudflare KV Storage]
+    KV --> |Fetch| Raw[Raw Configuration]
+    Raw --> |Validate| SC[Schema Validation]
+    SC --> |Parse| PC[Parsed Config]
+    PC --> |Update| L1
+    PC --> |Return| CS
+    CS --> |Default fallback| DF[Default Config]
+    
+    CLI[config-manager.ts] --> |Upload| KV
+    CLI --> |Download| KV
+    CLI --> |Validate| SC
+    
+    subgraph "Two-Tier Caching"
+        L1
+        KV
+    end
+```
+
 The service uses Cloudflare KV for dynamic configuration storage, allowing:
 
 - Updates without redeployment
-- Environment-specific configurations
+- Environment-specific configurations 
 - Detailed asset-type rules with regex patterns
 - Admin API for configuration management
+- Clear source tracking in logs (KV vs defaults)
 
 #### Managing KV Configuration
 
-The service includes a unified TypeScript utility for managing KV configuration with schema validation:
+The service includes a unified TypeScript CLI tool (`config-manager.ts`) for managing KV configuration with schema validation:
 
 ```bash
 # List configuration keys in KV
@@ -123,11 +150,67 @@ npm run config -- upload --skip-validation       # Upload without schema validat
 npm run config -- download --output-file ./custom-config.json
 ```
 
-The configuration manager uses the structure defined in `config.json` file and validates it against the Zod schemas to ensure compliance with the codebase's requirements before uploading.
+The configuration manager validates against Zod schemas to ensure compliance with the codebase's requirements before uploading. The system includes a two-tier caching architecture to minimize KV reads while allowing timely configuration updates.
 
-For complete documentation, see the [Scripts Documentation](./scripts/README.md).
+For complete documentation, see the [KV Configuration Documentation](./docs/internal/kv-configuration.md).
+
+#### Configuration Source Visibility
+
+The service provides multiple ways to verify which configuration source is being used:
+
+- **Enhanced Logging**: Logs clearly indicate configuration source with visual indicators:
+  - ✅ `KV_CONFIG`: Successfully loaded from KV
+  - ⚠️ `DEFAULT_CONFIG`: Using default configuration
+
+- **Debug Endpoint**: The `/__debug?config=true` endpoint provides detailed configuration status
+  
+- **Debug UI**: A built-in configuration status panel shows current configuration source
 
 #### Configuration Structure
+
+```mermaid
+classDiagram
+    class KVConfiguration {
+        +environment-config: EnvironmentConfig
+        +asset-configs: AssetConfigMap
+    }
+    
+    class EnvironmentConfig {
+        +environment: string
+        +logLevel: string
+        +debugMode: boolean
+        +maxCacheTags: number
+        +cacheTagNamespace: string
+        +version: string
+        +configRefreshInterval: number
+        +logging: LoggingConfig
+    }
+    
+    class AssetConfigMap {
+        +[assetType: string]: AssetConfig
+    }
+    
+    class AssetConfig {
+        +regexPattern: string
+        +ttl: TTLConfig
+        +useQueryInCacheKey: boolean
+        +queryParams: QueryParamConfig
+        +variants: VariantConfig
+        +cacheDirectives: CacheDirectivesConfig
+    }
+    
+    class TTLConfig {
+        +ok: number
+        +redirects: number
+        +clientError: number
+        +serverError: number
+    }
+    
+    KVConfiguration --> EnvironmentConfig : contains
+    KVConfiguration --> AssetConfigMap : contains
+    AssetConfigMap --> "*" AssetConfig : contains many
+    AssetConfig --> TTLConfig : contains
+```
 
 The KV configuration consists of two main keys:
 
@@ -193,8 +276,7 @@ See [Strategies Documentation](./docs/internal/strategies.md) for detailed infor
 │   ├── utils/             # Utility functions
 │   └── cache.ts           # Main entry point
 ├── scripts/              # Management scripts
-│   ├── config-uploader.ts   # Upload configs to KV store
-│   ├── config-downloader.ts # Download configs from KV store
+│   ├── config-manager.ts    # Unified configuration management tool
 │   └── README.md            # Scripts documentation
 ├── docs/                 # Documentation directory
 │   ├── internal/         # Internal documentation for developers
