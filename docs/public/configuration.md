@@ -2,9 +2,16 @@
 
 This guide covers the configuration options for the Cloudflare Caching Service.
 
+## Configuration Options
+
+The caching service can be configured through two primary methods:
+
+1. **Wrangler Environment Variables**: Basic settings defined in `wrangler.jsonc`
+2. **KV-Based Configuration**: Dynamic, detailed configuration stored in Cloudflare KV
+
 ## Environment Configuration
 
-Configuration is handled through environment variables in `wrangler.jsonc`:
+Basic configuration is handled through environment variables in `wrangler.jsonc`:
 
 | Variable | Description | Default |
 |----------|-------------|---------|

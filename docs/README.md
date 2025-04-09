@@ -23,11 +23,12 @@ Located in the `/docs/internal` directory, this documentation is intended for de
 - [Command System](./internal/commands.md) - Details on the command pattern implementation
 - [Services](./internal/services.md) - Core services and their responsibilities
 - [Caching Strategies](./internal/strategies.md) - Content-specific caching strategies
+- [KV Configuration](./internal/kv-configuration.md) - KV-based configuration management
 - [Telemetry System](./internal/telemetry.md) - Performance monitoring and analytics
 - [Testing Guide](./internal/testing.md) - Test patterns and guidelines
-- [Development Plan](./internal/development-plan.md) - Roadmap and future improvements
 
 ## Quick Links
 
 - [Project README](../README.md) - Main project overview
+- [Configuration Manager](../scripts/README.md) - CLI tool for configuration management
 - [Admin UI](./internal/admin-ui.md) - Admin interface documentation
