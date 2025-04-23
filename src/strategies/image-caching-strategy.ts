@@ -40,22 +40,12 @@ export class ImageCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    newResponse.headers.set('Cache-Control', cacheControlHeader);
+    // Apply cache headers, including dynamic TTL based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add image-specific headers
-    if (!newResponse.headers.has('Vary')) {
-      newResponse.headers.set('Vary', 'Accept');
+    if (!processedResponse.headers.has('Vary')) {
+      processedResponse.headers.set('Vary', 'Accept');
     }
     
     // Add cache tags for image content
@@ -63,7 +53,7 @@ export class ImageCachingStrategy extends BaseCachingStrategy {
       const tags = cacheTagService.generateTags(request, 'image');
       if (tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added image cache tags', { count: tags.length });
       }
     } catch (error) {
@@ -73,7 +63,7 @@ export class ImageCachingStrategy extends BaseCachingStrategy {
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

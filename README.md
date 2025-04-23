@@ -6,6 +6,7 @@ A modern, service-oriented TypeScript implementation for intelligent content-awa
 
 - Asset-specific caching rules based on file patterns
 - Content-specific optimization strategies
+- Dynamic browser cache TTL based on edge cache age
 - Cache tag support for efficient invalidation
 - Dynamic configuration via Cloudflare KV with schema validation
 - Two-tier configuration system (environment variables + KV)
@@ -235,7 +236,7 @@ The caching service includes these core services:
 - **Asset Type Service**: Detects content type from URL patterns
 - **Cache Key Service**: Generates cache keys with query parameter handling
 - **Cache Tag Service**: Creates hierarchical cache tags for each request
-- **Cache Header Service**: Manages response headers for optimal caching
+- **Cache Header Service**: Manages response headers with dynamic browser TTL based on edge cache age
 - **CF Options Service**: Generates Cloudflare-specific caching options
 
 ## Strategies

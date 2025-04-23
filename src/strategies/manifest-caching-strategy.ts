@@ -39,24 +39,12 @@ export class ManifestCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status - manifests get shorter TTLs
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    if (cacheControlHeader) {
-      newResponse.headers.set('Cache-Control', cacheControlHeader);
-    }
+    // Apply cache headers, including dynamic TTL based on Age - manifests get shorter TTLs
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add manifest-specific headers
-    if (!newResponse.headers.has('Vary')) {
-      newResponse.headers.set('Vary', 'Accept-Encoding');
+    if (!processedResponse.headers.has('Vary')) {
+      processedResponse.headers.set('Vary', 'Accept-Encoding');
     }
     
     // Add appropriate content-type for manifest files
@@ -64,35 +52,35 @@ export class ManifestCachingStrategy extends BaseCachingStrategy {
     const extension = url.pathname.split('.').pop()?.toLowerCase();
     
     if (extension === 'm3u8') {
-      newResponse.headers.set('Content-Type', 'application/vnd.apple.mpegurl');
+      processedResponse.headers.set('Content-Type', 'application/vnd.apple.mpegurl');
     } else if (extension === 'mpd') {
-      newResponse.headers.set('Content-Type', 'application/dash+xml');
+      processedResponse.headers.set('Content-Type', 'application/dash+xml');
     }
     
     // CORS headers for manifest files (important for cross-domain media players)
-    newResponse.headers.set('Access-Control-Allow-Origin', '*');
-    newResponse.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    newResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
+    processedResponse.headers.set('Access-Control-Allow-Origin', '*');
+    processedResponse.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    processedResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Range');
     
     // Add cache tags for manifest content
     try {
       const tags = cacheTagService.generateTags(request, 'manifest');
       if (tags && tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added manifest cache tags', { count: tags.length });
       }
     } catch (error) {
       // Important: we deliberately don't set Cache-Tag header on error
       // We need to remove it in case a header was set earlier
-      newResponse.headers.delete('Cache-Tag');
+      processedResponse.headers.delete('Cache-Tag');
       logger.warn('Failed to add cache tags to manifest response', {
         url: request.url,
         error: error instanceof Error ? error.message : String(error)
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

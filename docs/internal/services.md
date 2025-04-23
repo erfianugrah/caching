@@ -35,7 +35,7 @@ classDiagram
     
     class CacheHeaderService {
         <<interface>>
-        +getCacheControlHeader(status: number, config: AssetConfig) string
+        +getCacheControlHeader(status: number, config: AssetConfig, response?: Response) string
         +applyCacheHeaders(response: Response, request: Request, config: AssetConfig) Response
     }
     
@@ -67,7 +67,7 @@ classDiagram
 | Asset Type Service | `asset-type-service.ts` | Detects content type from URL patterns |
 | Cache Key Service | `cache-key-service.ts` | Generates cache keys with query handling |
 | Cache Tag Service | `cache-tag-service.ts` | Creates hierarchical cache tags |
-| Cache Header Service | `cache-header-service.ts` | Manages response headers |
+| Cache Header Service | `cache-header-service.ts` | Manages response headers with dynamic TTL calculation |
 | CF Options Service | `cf-options-service.ts` | Generates Cloudflare-specific options |
 
 ## Service Factory Pattern
@@ -221,36 +221,83 @@ export class CacheTagServiceImpl implements CacheTagService {
 
 ### Cache Header Service
 
-The `CacheHeaderService` manages response headers for optimal caching:
+The `CacheHeaderService` manages response headers for optimal caching. A key feature is dynamically adjusting browser cache TTLs based on content age in the Cloudflare edge cache:
 
 ```typescript
 interface CacheHeaderService {
-  getCacheControlHeader(status: number, config: AssetConfig): string;
+  getCacheControlHeader(status: number, config: AssetConfig, response?: Response): string;
+  applyCacheHeaders(response: Response, request: Request, config: AssetConfig): Response;
 }
 
 export class CacheHeaderServiceImpl implements CacheHeaderService {
-  public getCacheControlHeader(status: number, config: AssetConfig): string {
-    const ttl = this.getTtlForStatus(status, config.ttl);
-    
-    if (ttl > 0) {
-      return `public, max-age=${ttl}`;
-    } else {
-      return 'no-store, no-cache, must-revalidate, proxy-revalidate';
+  public getCacheControlHeader(status: number, config: AssetConfig, response?: Response): string {
+    if (!config.ttl) return '';
+
+    // Map status code to appropriate TTL
+    let ttl = 0;
+    if (status >= 200 && status < 300) ttl = config.ttl.ok;
+    else if (status >= 300 && status < 400) ttl = config.ttl.redirects;
+    else if (status >= 400 && status < 500) ttl = config.ttl.clientError;
+    else if (status >= 500 && status < 600) ttl = config.ttl.serverError;
+
+    // If no TTL or response is available, use the standard logic
+    if (ttl <= 0 || !response) {
+      return ttl > 0 ? `public, max-age=${ttl}` : 'no-store';
     }
+
+    // Extract Age header if present to determine remaining TTL
+    const ageHeader = response.headers.get('Age');
+    let age = 0;
+    if (ageHeader) {
+      const parsedAge = parseInt(ageHeader, 10);
+      if (!isNaN(parsedAge) && parsedAge >= 0) {
+        age = parsedAge;
+      }
+    }
+
+    // Calculate remaining TTL for the browser cache
+    const remainingTtl = Math.max(0, Math.floor(ttl - age));
+    
+    // Log the calculation for debugging
+    logger.debug('Dynamic TTL calculation', {
+      originalTtl: ttl,
+      ageHeader,
+      parsedAge: age,
+      remainingTtl,
+      status
+    });
+    
+    // Return appropriate Cache-Control header
+    return remainingTtl > 0 ? `public, max-age=${remainingTtl}` : 'no-store';
   }
   
-  private getTtlForStatus(status: number, ttlConfig: TtlConfig): number {
-    if (status >= 200 && status < 300) {
-      return ttlConfig.ok;
-    } else if (status === 301 || status === 302) {
-      return ttlConfig.redirects;
-    } else if (status >= 400 && status < 500) {
-      return ttlConfig.clientError;
-    } else if (status >= 500) {
-      return ttlConfig.serverError;
+  public applyCacheHeaders(response: Response, request: Request, config: AssetConfig): Response {
+    // Create a new response to modify headers
+    const newResponse = new Response(response.body, response);
+    
+    // Get dependencies through factory
+    const cacheTagService = ServiceFactory.getCacheTagService();
+    
+    // Set Cache-Control header based on response status and Age header
+    const cacheControl = this.getCacheControlHeader(response.status, config, response);
+    if (cacheControl) {
+      newResponse.headers.set('Cache-Control', cacheControl);
     }
     
-    return 0; // Default to no caching
+    // Keep the Age header in the response to browsers
+    // This allows browsers to see how long the resource has been in the edge cache
+    
+    // Set cache tags if configured
+    const assetType = 'assetType' in config ? config.assetType : 'default';
+    const cacheTags = cacheTagService.generateTags(request, assetType);
+    if (cacheTags && cacheTags.length > 0) {
+      const formattedTags = cacheTagService.formatTagsForHeader(cacheTags);
+      if (formattedTags) {
+        newResponse.headers.set('Cache-Tag', formattedTags);
+      }
+    }
+    
+    return newResponse;
   }
 }
 ```

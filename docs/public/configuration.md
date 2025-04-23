@@ -128,6 +128,39 @@ The `ttl` object sets cache time-to-live durations for different status code ran
 }
 ```
 
+#### Dynamic Browser Cache TTL
+
+The service automatically adjusts browser cache TTLs based on how long content has been in the Cloudflare edge cache:
+
+1. The response from Cloudflare includes the `Age` header indicating how many seconds the content has been cached at the edge
+2. The service calculates remaining TTL by subtracting the `Age` value from the original TTL
+3. The `Cache-Control: max-age` header sent to browsers is set to this remaining TTL
+4. The original `Age` header is preserved in the response
+
+This ensures that browser caches expire at the same time as the edge cache, preventing stale content from being served from browsers after it has expired at the edge.
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Worker as Cloudflare Worker
+    participant Edge as Cloudflare Edge Cache
+    participant Origin
+
+    Browser->>Worker: Request asset
+    Worker->>Edge: Check cache
+    
+    alt First request (cache miss)
+        Edge->>Origin: Fetch resource
+        Origin->>Edge: Response
+        Edge->>Worker: Response (no Age header)
+        Worker->>Browser: Set Cache-Control: max-age=FULL_TTL
+    else Subsequent request (cache hit)
+        Edge->>Worker: Response with Age header
+        Worker->>Worker: Calculate remaining TTL = FULL_TTL - Age
+        Worker->>Browser: Set Cache-Control: max-age=REMAINING_TTL
+    end
+```
+
 ### Variants Configuration
 
 The `variants` object configures content variations for responsive delivery:

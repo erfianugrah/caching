@@ -40,24 +40,12 @@ export class FrontEndCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    if (cacheControlHeader) {
-      newResponse.headers.set('Cache-Control', cacheControlHeader);
-    }
+    // Apply cache headers, including dynamic TTL based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add frontend-specific headers
-    if (!newResponse.headers.has('Vary')) {
-      newResponse.headers.set('Vary', 'Accept-Encoding');
+    if (!processedResponse.headers.has('Vary')) {
+      processedResponse.headers.set('Vary', 'Accept-Encoding');
     }
     
     // Add cache tags for frontend content
@@ -65,7 +53,7 @@ export class FrontEndCachingStrategy extends BaseCachingStrategy {
       const tags = cacheTagService.generateTags(request, 'frontEnd');
       if (tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added frontend cache tags', { count: tags.length });
       }
     } catch (error) {
@@ -75,7 +63,7 @@ export class FrontEndCachingStrategy extends BaseCachingStrategy {
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

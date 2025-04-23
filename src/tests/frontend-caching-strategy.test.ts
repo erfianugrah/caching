@@ -30,7 +30,12 @@ describe('FrontEndCachingStrategy', () => {
           formatTagsForHeader: vi.fn((tags) => tags.join(','))
         })),
         getCacheHeaderService: vi.fn(() => ({
-          getCacheControlHeader: vi.fn(() => 'public, max-age=3600')
+          getCacheControlHeader: vi.fn(() => 'public, max-age=3600'),
+          applyCacheHeaders: vi.fn((response, request, config) => {
+            const newResponse = new Response(response.body, response);
+            newResponse.headers.set('Cache-Control', 'public, max-age=3600');
+            return newResponse;
+          })
         }))
       }
     }));

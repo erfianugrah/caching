@@ -28,6 +28,7 @@ describe('DefaultCachingStrategy', () => {
   let strategy: DefaultCachingStrategy;
   let mockCacheHeaderService: {
     getCacheControlHeader: ReturnType<typeof vi.fn>;
+    applyCacheHeaders: ReturnType<typeof vi.fn>;
   };
   let mockCacheKeyService: {
     getCacheKey: ReturnType<typeof vi.fn>;
@@ -43,7 +44,12 @@ describe('DefaultCachingStrategy', () => {
     
     // Create mock services
     mockCacheHeaderService = {
-      getCacheControlHeader: vi.fn().mockReturnValue('public, max-age=3600')
+      getCacheControlHeader: vi.fn().mockReturnValue('public, max-age=3600'),
+      applyCacheHeaders: vi.fn().mockImplementation((response, request, config) => {
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Cache-Control', 'public, max-age=3600');
+        return newResponse;
+      })
     };
     
     mockCacheKeyService = {
@@ -111,8 +117,9 @@ describe('DefaultCachingStrategy', () => {
       expect(result.headers.get('Cache-Control')).toBe('public, max-age=3600');
       
       // Verify interaction with header service
-      expect(mockCacheHeaderService.getCacheControlHeader).toHaveBeenCalledWith(
-        200, 
+      expect(mockCacheHeaderService.applyCacheHeaders).toHaveBeenCalledWith(
+        response, 
+        request,
         config
       );
     });
@@ -177,8 +184,12 @@ describe('DefaultCachingStrategy', () => {
         }
       };
       
-      // Mock different Cache-Control header for error
-      mockCacheHeaderService.getCacheControlHeader.mockReturnValueOnce('public, max-age=60');
+      // Mock different Cache-Control header for error response
+      mockCacheHeaderService.applyCacheHeaders.mockImplementationOnce((response, request, config) => {
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Cache-Control', 'public, max-age=60');
+        return newResponse;
+      });
       
       // Call method under test
       const result = strategy.applyCaching(response, request, config);
@@ -190,8 +201,9 @@ describe('DefaultCachingStrategy', () => {
       expect(result.headers.get('Cache-Control')).toBe('public, max-age=60');
       
       // Verify interaction with service
-      expect(mockCacheHeaderService.getCacheControlHeader).toHaveBeenCalledWith(
-        404, 
+      expect(mockCacheHeaderService.applyCacheHeaders).toHaveBeenCalledWith(
+        response, 
+        request,
         config
       );
     });

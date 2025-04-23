@@ -30,29 +30,18 @@ export class DirectPlayCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
     // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    if (cacheControlHeader) {
-      newResponse.headers.set('Cache-Control', cacheControlHeader);
-    }
+    // Use applyCacheHeaders instead of getCacheControlHeader
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Ensure appropriate content disposition headers for downloads
-    if (!newResponse.headers.has('Content-Disposition')) {
+    if (!processedResponse.headers.has('Content-Disposition')) {
       // Extract filename from URL path
       const url = new URL(request.url);
       const encodedFilename = url.pathname.split('/').pop() || 'file';
       // Decode the filename to handle spaces and special characters
       const filename = decodeURIComponent(encodedFilename);
-      newResponse.headers.set('Content-Disposition', `attachment; filename="${filename}"`);
+      processedResponse.headers.set('Content-Disposition', `attachment; filename="${filename}"`);
     }
     
     // Add cache tags for direct play/download content
@@ -60,20 +49,20 @@ export class DirectPlayCachingStrategy extends BaseCachingStrategy {
       const tags = cacheTagService.generateTags(request, 'directPlay');
       if (tags && tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added direct play cache tags', { count: tags.length });
       }
     } catch (error) {
       // Important: we deliberately don't set Cache-Tag header on error
       // We need to remove it in case a header was set earlier
-      newResponse.headers.delete('Cache-Tag');
+      processedResponse.headers.delete('Cache-Tag');
       logger.warn('Failed to add cache tags to direct play response', {
         url: request.url,
         error: error instanceof Error ? error.message : String(error)
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

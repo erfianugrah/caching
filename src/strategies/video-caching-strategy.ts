@@ -43,28 +43,18 @@ export class VideoCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    newResponse.headers.set('Cache-Control', cacheControlHeader);
+    // Apply cache headers, including dynamic TTL based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add video-specific headers
-    newResponse.headers.set('Accept-Ranges', 'bytes');
+    processedResponse.headers.set('Accept-Ranges', 'bytes');
     
     // Add cache tags for video content
     try {
       const tags = cacheTagService.generateTags(request, 'video');
       if (tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added video cache tags', { count: tags.length });
       }
     } catch (error) {
@@ -74,7 +64,7 @@ export class VideoCachingStrategy extends BaseCachingStrategy {
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

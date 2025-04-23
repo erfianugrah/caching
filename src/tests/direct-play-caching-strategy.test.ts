@@ -8,7 +8,12 @@ const originalMocks = {
   getCacheKey: vi.fn(() => 'https://example.com/Download/video.mp4'),
   generateTags: vi.fn(() => ['cf:host:example.com', 'cf:type:directPlay', 'cf:path:Download']),
   formatTagsForHeader: vi.fn((tags) => tags.join(',')),
-  getCacheControlHeader: vi.fn(() => 'public, max-age=31556952')
+  getCacheControlHeader: vi.fn(() => 'public, max-age=31556952'),
+  applyCacheHeaders: vi.fn((response, request, config) => {
+    const newResponse = new Response(response.body, response);
+    newResponse.headers.set('Cache-Control', 'public, max-age=31556952');
+    return newResponse;
+  })
 };
 
 // Mock dependencies
@@ -22,7 +27,8 @@ vi.mock('../services/service-factory', () => ({
       formatTagsForHeader: originalMocks.formatTagsForHeader
     })),
     getCacheHeaderService: vi.fn(() => ({
-      getCacheControlHeader: originalMocks.getCacheControlHeader
+      getCacheControlHeader: originalMocks.getCacheControlHeader,
+      applyCacheHeaders: originalMocks.applyCacheHeaders
     }))
   }
 }));

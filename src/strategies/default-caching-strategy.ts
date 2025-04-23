@@ -27,25 +27,16 @@ export class DefaultCachingStrategy extends BaseCachingStrategy {
     const cacheHeaderService = ServiceFactory.getCacheHeaderService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    newResponse.headers.set('Cache-Control', cacheControlHeader);
+    // Apply cache headers including dynamic TTL adjustment based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     logger.debug('Applied default caching strategy', { 
       url: request.url,
-      status: response.status
+      status: response.status,
+      hasDynamicTtl: response.headers.has('Age')
     });
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

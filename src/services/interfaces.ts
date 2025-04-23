@@ -37,8 +37,9 @@ export interface CacheKeyService {
 export interface CacheHeaderService {
   /**
    * Generate Cache-Control header based on response status and config
+   * Optionally uses the response Age header for dynamic TTL calculation
    */
-  getCacheControlHeader(status: number, config: AssetConfig): string;
+  getCacheControlHeader(status: number, config: AssetConfig, response?: Response): string;
   
   /**
    * Apply cache headers to a response

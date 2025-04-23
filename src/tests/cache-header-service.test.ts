@@ -82,14 +82,35 @@ describe('CacheHeaderService', () => {
       expect(header).toBe('public, max-age=60');
     });
 
-    it('should generate no Cache-Control for 5xx responses', () => {
+    it('should generate no-store Cache-Control for 5xx responses', () => {
       const header = service.getCacheControlHeader(500, config);
-      expect(header).toBe('');
+      expect(header).toBe('no-store');
     });
 
     it('should handle unknown status codes', () => {
       const header = service.getCacheControlHeader(700, config);
-      expect(header).toBe('');
+      expect(header).toBe('no-store');
+    });
+    
+    it('should calculate remaining TTL using Age header', () => {
+      // Create a mock response with an Age header
+      const mockResponse = new Response('Test', {
+        headers: { 'Age': '600' }  // 10 minutes old
+      });
+      
+      // For a 1-hour TTL, we should see ~50 minutes remaining
+      const header = service.getCacheControlHeader(200, config, mockResponse);
+      expect(header).toBe('public, max-age=3000');  // 3600 - 600 = 3000
+    });
+    
+    it('should return no-store when Age exceeds TTL', () => {
+      // Create a mock response with an Age header that exceeds the TTL
+      const mockResponse = new Response('Test', {
+        headers: { 'Age': '4000' }  // Older than the TTL of 3600
+      });
+      
+      const header = service.getCacheControlHeader(200, config, mockResponse);
+      expect(header).toBe('no-store');
     });
 
     it('should handle specific status codes when provided in the config', () => {
@@ -199,7 +220,34 @@ describe('CacheHeaderService', () => {
       // Verify
       expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600');
       expect(response.headers.get('Cache-Tag')).toBe('tag1,tag2');
+      // Age header should be preserved if present
       expect(mockCacheTagService.generateTags).toHaveBeenCalledWith(request, 'test');
+    });
+    
+    it('should preserve Age header in the response', () => {
+      // Reset mocks
+      vi.clearAllMocks();
+      
+      // Mock the necessary functions
+      mockCacheTagService.generateTags.mockReturnValue(['tag1', 'tag2']);
+      mockCacheTagService.formatTagsForHeader.mockReturnValue('tag1,tag2');
+      
+      // Create a spy for getCacheControlHeader
+      vi.spyOn(service, 'getCacheControlHeader').mockReturnValue('public, max-age=1000');
+      
+      // Setup
+      const request = new Request('https://example.com/test');
+      const originalResponse = new Response('Test body', { 
+        status: 200,
+        headers: { 'Age': '2600' } // Add Age header to original response
+      });
+      
+      // Execute
+      const response = service.applyCacheHeaders(originalResponse, request, config);
+      
+      // Verify
+      expect(response.headers.get('Cache-Control')).toBe('public, max-age=1000');
+      expect(response.headers.get('Age')).toBe('2600'); // Age header should be preserved
     });
 
     it('should not set Cache-Control for status codes with 0 TTL', () => {

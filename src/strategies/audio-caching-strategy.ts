@@ -44,30 +44,17 @@ export class AudioCachingStrategy extends BaseCachingStrategy {
     const cacheHeaderService = ServiceFactory.getCacheHeaderService();
     const cacheTagService = ServiceFactory.getCacheTagService();
     
-    // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    if (cacheControlHeader) {
-      newResponse.headers.set('Cache-Control', cacheControlHeader);
-    }
+    // Apply cache headers, including dynamic TTL based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add audio-specific headers
-    if (!newResponse.headers.has('Vary')) {
-      newResponse.headers.set('Vary', 'Accept-Encoding');
+    if (!processedResponse.headers.has('Vary')) {
+      processedResponse.headers.set('Vary', 'Accept-Encoding');
     }
     
     // Add appropriate content disposition if not present
-    if (!newResponse.headers.has('Content-Disposition')) {
-      newResponse.headers.set('Content-Disposition', 'inline');
+    if (!processedResponse.headers.has('Content-Disposition')) {
+      processedResponse.headers.set('Content-Disposition', 'inline');
     }
     
     // Add cache tags for audio content
@@ -75,20 +62,20 @@ export class AudioCachingStrategy extends BaseCachingStrategy {
       const tags = cacheTagService.generateTags(request, 'audio');
       if (tags && tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added audio cache tags', { count: tags.length });
       }
     } catch (error) {
       // Important: we deliberately don't set Cache-Tag header on error
       // We need to remove it in case a header was set earlier
-      newResponse.headers.delete('Cache-Tag');
+      processedResponse.headers.delete('Cache-Tag');
       logger.warn('Failed to add cache tags to audio response', {
         url: request.url,
         error: error instanceof Error ? error.message : String(error)
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**

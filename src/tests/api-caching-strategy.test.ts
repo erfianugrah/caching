@@ -14,7 +14,12 @@ vi.mock('../services/service-factory', () => ({
       formatTagsForHeader: vi.fn((tags) => tags.join(','))
     })),
     getCacheHeaderService: vi.fn(() => ({
-      getCacheControlHeader: vi.fn(() => 'public, max-age=60')
+      getCacheControlHeader: vi.fn(() => 'public, max-age=60'),
+      applyCacheHeaders: vi.fn((response, request, config) => {
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Cache-Control', 'public, max-age=60');
+        return newResponse;
+      })
     }))
   }
 }));

@@ -43,7 +43,11 @@ describe('ImageCachingStrategy', () => {
     // Create mock services
     mockCacheHeaderService = {
       getCacheControlHeader: vi.fn().mockReturnValue('public, max-age=3600'),
-      applyCacheHeaders: vi.fn(response => response)
+      applyCacheHeaders: vi.fn().mockImplementation(response => {
+        const newResponse = new Response(response.body, response);
+        newResponse.headers.set('Cache-Control', 'public, max-age=3600');
+        return newResponse;
+      })
     };
     
     mockCacheTagService = {
@@ -143,8 +147,9 @@ describe('ImageCachingStrategy', () => {
       expect(result.headers.get('Cache-Tag')).toBe('image,png');
       
       // Verify interactions with services
-      expect(mockCacheHeaderService.getCacheControlHeader).toHaveBeenCalledWith(
-        200, 
+      expect(mockCacheHeaderService.applyCacheHeaders).toHaveBeenCalledWith(
+        response,
+        request,
         config
       );
       

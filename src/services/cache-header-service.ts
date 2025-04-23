@@ -18,9 +18,10 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
    * Calculate Cache-Control header based on response status and config
    * @param status The HTTP status code
    * @param config The asset configuration
+   * @param response Optional response object to extract Age header for dynamic TTL calculation
    * @returns A Cache-Control header value or empty string
    */
-  public getCacheControlHeader(status: number, config: AssetConfig): string {
+  public getCacheControlHeader(status: number, config: AssetConfig, response?: Response): string {
     if (!config.ttl) return '';
 
     // Map status code to appropriate TTL
@@ -30,7 +31,35 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
     else if (status >= 400 && status < 500) ttl = config.ttl.clientError;
     else if (status >= 500 && status < 600) ttl = config.ttl.serverError;
 
-    return ttl > 0 ? `public, max-age=${ttl}` : '';
+    // If no TTL or response is available, use the standard logic
+    if (ttl <= 0 || !response) {
+      return ttl > 0 ? `public, max-age=${ttl}` : 'no-store';
+    }
+
+    // Extract Age header if present to determine remaining TTL
+    const ageHeader = response.headers.get('Age');
+    let age = 0;
+    if (ageHeader) {
+      const parsedAge = parseInt(ageHeader, 10);
+      if (!isNaN(parsedAge) && parsedAge >= 0) {
+        age = parsedAge;
+      }
+    }
+
+    // Calculate remaining TTL for the browser cache
+    const remainingTtl = Math.max(0, Math.floor(ttl - age));
+    
+    // Log the calculation for debugging
+    logger.debug('Dynamic TTL calculation', {
+      originalTtl: ttl,
+      ageHeader,
+      parsedAge: age,
+      remainingTtl,
+      status
+    });
+    
+    // Return appropriate Cache-Control header
+    return remainingTtl > 0 ? `public, max-age=${remainingTtl}` : 'no-store';
   }
   
   /**
@@ -51,11 +80,14 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
     // Get dependencies through factory
     const cacheTagService = ServiceFactory.getCacheTagService();
     
-    // Set Cache-Control header based on response status
-    const cacheControl = this.getCacheControlHeader(response.status, config);
+    // Set Cache-Control header based on response status and Age header
+    const cacheControl = this.getCacheControlHeader(response.status, config, response);
     if (cacheControl) {
       newResponse.headers.set('Cache-Control', cacheControl);
     }
+    
+    // Keep the Age header in the response to browsers
+    // This allows browsers to see how long the resource has been in the edge cache
     
     // Set Cache-Tag header for debugging and external systems
     const assetType = 'assetType' in config ? (config as Record<string, string>).assetType : 'default';
@@ -73,6 +105,9 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
                      (globalThis as unknown as Record<string, string>).DEBUG_MODE === 'true';
     
     if (debugMode) {
+      // Get the Age header value before we remove it for debugging purposes
+      const ageHeader = response.headers.get('Age');
+      
       newResponse.headers.set(
         'x-cache-debug',
         JSON.stringify({
@@ -80,6 +115,8 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
           cacheKey: new URL(request.url).pathname,
           ttl: config.ttl,
           cacheTags,
+          cfAge: ageHeader, // Include original CF Age header for debugging
+          calculatedCacheControl: cacheControl, // Include the calculated Cache-Control value
           environment: (globalThis as unknown as Record<string, string>).ENVIRONMENT || 'development',
           worker: {
             name: (globalThis as unknown as Record<string, string>).name || 'caching',
@@ -93,7 +130,9 @@ export class CacheHeaderServiceImpl implements CacheHeaderService {
       url: request.url,
       statusCode: response.status,
       assetType,
-      cacheControl
+      cacheControl,
+      originalAge: response.headers.get('Age'),
+      dynamicTtlAdjusted: response.headers.get('Age') ? true : false
     });
     
     return newResponse;

@@ -39,30 +39,18 @@ export class ApiCachingStrategy extends BaseCachingStrategy {
     const cacheTagService = ServiceFactory.getCacheTagService();
     
     // Create a new response with the same body
-    const newResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: new Headers(response.headers)
-    });
-    
-    // Add Cache-Control header based on status
-    const cacheControlHeader = cacheHeaderService.getCacheControlHeader(
-      response.status,
-      config
-    );
-    if (cacheControlHeader) {
-      newResponse.headers.set('Cache-Control', cacheControlHeader);
-    }
+    // Apply cache headers, including dynamic TTL based on Age
+    const processedResponse = cacheHeaderService.applyCacheHeaders(response, request, config);
     
     // Add API-specific headers
     // Set Vary header for proper cache variations
-    if (!newResponse.headers.has('Vary')) {
-      newResponse.headers.set('Vary', 'Accept, Accept-Encoding, Origin');
+    if (!processedResponse.headers.has('Vary')) {
+      processedResponse.headers.set('Vary', 'Accept, Accept-Encoding, Origin');
     }
     
     // Add standard security headers for API responses if not already present
-    if (!newResponse.headers.has('X-Content-Type-Options')) {
-      newResponse.headers.set('X-Content-Type-Options', 'nosniff');
+    if (!processedResponse.headers.has('X-Content-Type-Options')) {
+      processedResponse.headers.set('X-Content-Type-Options', 'nosniff');
     }
     
     // Add cache tags for API content
@@ -70,7 +58,7 @@ export class ApiCachingStrategy extends BaseCachingStrategy {
       const tags = cacheTagService.generateTags(request, 'api');
       if (tags.length > 0) {
         const tagHeader = cacheTagService.formatTagsForHeader(tags);
-        newResponse.headers.set('Cache-Tag', tagHeader);
+        processedResponse.headers.set('Cache-Tag', tagHeader);
         logger.debug('Added API cache tags', { count: tags.length });
       }
     } catch (error) {
@@ -80,7 +68,7 @@ export class ApiCachingStrategy extends BaseCachingStrategy {
       });
     }
     
-    return newResponse;
+    return processedResponse;
   }
 
   /**
