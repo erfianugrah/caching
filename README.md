@@ -283,7 +283,6 @@ See [Strategies Documentation](./docs/internal/strategies.md) for detailed infor
 │   ├── internal/         # Internal documentation for developers
 │   └── public/           # Public documentation for users
 ├── config-init.json      # Initial configuration template
-├── CLAUDE.md             # Guidelines for Claude AI assistance
 └── README.md             # This file
 ```
 
